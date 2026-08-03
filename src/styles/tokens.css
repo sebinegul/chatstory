@@ -1,23 +1,26 @@
 :root {
-  /* Platform chrome — dark glass SaaS */
-  --paper: #05070b;
-  --paper-deep: #0b1018;
-  --ink: #f4f7fb;
-  --ink-soft: #b6c0ce;
-  --muted: #7d8a9c;
-  --gold: #2dd4bf;
-  --gold-deep: #14b8a6;
-  --accent: #38bdf8;
-  --danger: #f87171;
-  --rule: rgba(148, 163, 184, 0.18);
-  --wash: #0a0f16;
-  --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  --paper: #f7f5f2;
+  --paper-deep: #efece8;
+  --surface: #ffffff;
+  --ink: #1c1917;
+  --ink-soft: #44403c;
+  --muted: #78716c;
+  --rule: #e7e5e4;
+  --accent: #9f1239;
+  --accent-soft: #fff1f2;
+  --danger: #b91c1c;
+  --shadow: 0 18px 50px rgba(28, 25, 23, 0.08);
 
-  --glass: rgba(15, 23, 42, 0.55);
-  --glass-strong: rgba(15, 23, 42, 0.78);
-  --glow-cyan: rgba(45, 212, 191, 0.22);
-  --glow-blue: rgba(56, 189, 248, 0.18);
-  --border-glass: rgba(255, 255, 255, 0.1);
-  --cta: #2dd4bf;
-  --cta-ink: #042f2e;
+  /* Compat aliases (remove usages in later tasks) */
+  --gold: var(--accent);
+  --gold-deep: var(--accent);
+  --accent-legacy: var(--accent);
+  --wash: var(--paper-deep);
+  --cta: var(--accent);
+  --cta-ink: #fff7f7;
+  --glass: var(--surface);
+  --glass-strong: var(--surface);
+  --border-glass: var(--rule);
+  --glow-cyan: transparent;
+  --glow-blue: transparent;
 }

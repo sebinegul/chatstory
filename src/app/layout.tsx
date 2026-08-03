@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, DM_Sans, Cormorant_Garamond, EB_Garamond } from "next/font/google";
+import { Outfit, DM_Sans, Cormorant_Garamond, EB_Garamond } from "next/font/google";
 import "./globals.css";
 
-const space = Space_Grotesk({
+const outfit = Outfit({
   variable: "--font-space",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
@@ -39,7 +39,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${space.variable} ${dm.variable} ${cormorant.variable} ${ebGaramond.variable} h-full antialiased`}
+      className={`${outfit.variable} ${dm.variable} ${cormorant.variable} ${ebGaramond.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-[var(--paper)] text-[var(--ink)]">
         {children}
