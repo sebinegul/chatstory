@@ -1,0 +1,5 @@
+﻿node_modules
+.next
+prisma/*.db
+.env
+.superpowers
