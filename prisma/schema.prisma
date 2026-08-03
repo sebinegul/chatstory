@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id                 String      @id @default(cuid())
+  createdAt          DateTime    @default(now())
+  expiresAt          DateTime
+  status             String      @default("uploaded")
+  privacyAcceptedAt  DateTime?
+  clientIpHash       String?
+  upload             ChatUpload?
+  config             BookConfig?
+  book               Book?
+  order              Order?
+  previewCount       Int         @default(0)
+}
+
+model ChatUpload {
+  id         String  @id @default(cuid())
+  sessionId  String  @unique
+  session    Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  filename   String
+  byteSize   Int
+  parsedJson String
+}
+
+model BookConfig {
+  id               String  @id @default(cuid())
+  sessionId        String  @unique
+  session          Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  personA          String
+  personB          String
+  relationship     String  @default("couple")
+  specialDatesJson String
+  chaptersJson     String
+  templateId       String
+  keyword          String  @default("")
+}
+
+model Book {
+  id               String  @id @default(cuid())
+  sessionId        String  @unique
+  session          Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  title            String
+  titleOptionsJson String
+  dedication       String
+  pagesJson        String
+  isWatermarked    Boolean @default(true)
+}
+
+model Order {
+  id          String    @id @default(cuid())
+  sessionId   String    @unique
+  session     Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  amountPaise Int       @default(4900)
+  status      String    @default("mock_pending")
+  unlockedAt  DateTime?
+}
+
+model RateLimit {
+  id        String   @id @default(cuid())
+  ipHash    String
+  dayKey    String
+  previews  Int      @default(0)
+  @@unique([ipHash, dayKey])
+}

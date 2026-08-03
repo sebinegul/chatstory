@@ -1,0 +1,71 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-gold: var(--gold);
+  --color-gold-deep: var(--gold-deep);
+  --color-danger: var(--danger);
+  --font-display: var(--font-cormorant);
+  --font-serif: var(--font-eb-garamond);
+  --font-sans: var(--font-jost);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-jost), system-ui, sans-serif;
+}
+
+.paper-wash {
+  background:
+    radial-gradient(ellipse at 20% 10%, color-mix(in srgb, var(--gold) 14%, transparent), transparent 45%),
+    radial-gradient(ellipse at 90% 80%, color-mix(in srgb, var(--paper-deep) 80%, transparent), transparent 40%),
+    linear-gradient(180deg, var(--paper), var(--paper-deep));
+  opacity: 1;
+}
+
+.hero-fade {
+  animation: fade-in 900ms ease both;
+}
+
+.hero-rise {
+  animation: rise-in 1000ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-rise:nth-child(3) { animation-delay: 80ms; }
+.hero-rise:nth-child(4) { animation-delay: 140ms; }
+.hero-rise:nth-child(5) { animation-delay: 200ms; }
+.hero-rise:nth-child(6) { animation-delay: 260ms; }
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.book-page {
+  background: color-mix(in srgb, var(--paper) 92%, white);
+  box-shadow: 0 1px 0 var(--rule);
+}
+
+.book-gold {
+  background: #f7f3ec;
+}
+
+.book-minimal {
+  background: #fafafa;
+  color: #111;
+}
+
+.book-pastel {
+  background: #faf3f1;
+}
