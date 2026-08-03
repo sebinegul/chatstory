@@ -1,7 +1,7 @@
 export type TemplateId =
   | "elegant-gold"
   | "minimal-ink"
-  | "pastel"
+  | "cute"
   | "ghibli";
 
 export interface TemplateMeta {
@@ -13,30 +13,37 @@ export interface TemplateMeta {
 export const TEMPLATES: TemplateMeta[] = [
   {
     id: "elegant-gold",
-    name: "Elegant Gold",
-    blurb: "Ornate keepsake: double gold frames, diamond rules, portrait photos.",
+    name: "Velvet Letter",
+    blurb: "Elegant keepsake: foil rules, love-letter margins, quiet gold.",
   },
   {
     id: "minimal-ink",
-    name: "Minimal Ink",
-    blurb: "Magazine editorial: full-bleed dark cover, huge pull quotes, ink rules.",
+    name: "Quiet Type",
+    blurb: "Editorial poetry: dark covers, huge tender quotes, ink rules.",
   },
   {
-    id: "pastel",
-    name: "Pastel",
-    blurb: "Scrapbook soft: polaroids, blush shapes, tilted quote cards.",
+    id: "cute",
+    name: "Honey Heart",
+    blurb: "Cute & soft: peach blush, heart stickers, playful quote bubbles.",
   },
   {
     id: "ghibli",
     name: "Ghibli Soft",
-    blurb: "Whimsical meadow pages. Uploaded photos are restyled in Ghibli art style.",
+    blurb: "Meadow skies. Photos restyled as painted Ghibli frames.",
   },
 ];
 
+/** Older configs may still say "pastel". */
+export function normalizeTemplateId(value: string): TemplateId | null {
+  if (value === "pastel") return "cute";
+  if (TEMPLATES.some((t) => t.id === value)) return value as TemplateId;
+  return null;
+}
+
 export function isTemplateId(value: string): value is TemplateId {
-  return TEMPLATES.some((t) => t.id === value);
+  return normalizeTemplateId(value) !== null;
 }
 
 export function isGhibliTemplate(id: string): boolean {
-  return id === "ghibli";
+  return normalizeTemplateId(id) === "ghibli";
 }

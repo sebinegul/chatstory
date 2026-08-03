@@ -51,7 +51,7 @@ export default function UploadPage() {
         type="button"
         onClick={submit}
         disabled={busy}
-        className="mt-8 rounded-sm bg-[var(--gold-deep)] px-6 py-3 text-sm text-[var(--paper)] disabled:opacity-60"
+        className="mt-8 btn-primary cursor-pointer px-6 py-3 text-sm disabled:opacity-60"
       >
         {busy ? "Reading..." : "Continue"}
       </button>

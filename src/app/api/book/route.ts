@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionOrThrow } from "@/lib/session";
+import { normalizeTemplateId } from "@/lib/templates/registry";
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
       dedication: book.dedication,
       pages: JSON.parse(book.pagesJson),
       isWatermarked: book.isWatermarked,
-      templateId: config.templateId,
+      templateId: normalizeTemplateId(config.templateId) || "elegant-gold",
       personA: config.personA,
       personB: config.personB,
     });

@@ -1,5 +1,5 @@
 import type { BookPageModel } from "@/lib/ai/types";
-import type { TemplateId } from "@/lib/templates/registry";
+import { normalizeTemplateId, type TemplateId } from "@/lib/templates/registry";
 import { formatDateTimeDMY, formatDayKeyDMY } from "@/lib/format-date";
 
 /** Hex-only palette — html2canvas cannot parse color-mix() / modern color(). */
@@ -23,13 +23,13 @@ const THEMES: Record<
     accent: "#222222",
     accentDeep: "#111111",
   },
-  pastel: {
-    bg: "#faf3f1",
-    ink: "#4a3030",
-    soft: "#6b4a4a",
-    muted: "#9a6b6b",
-    accent: "#d4a5a5",
-    accentDeep: "#9a6b6b",
+  cute: {
+    bg: "#fff5f7",
+    ink: "#5a3040",
+    soft: "#7a4555",
+    muted: "#c45d75",
+    accent: "#e8788c",
+    accentDeep: "#e8788c",
   },
   ghibli: {
     bg: "#eef8f2",
@@ -72,14 +72,32 @@ function imgTag(
   if (!url) return "";
   const safe = escapeHtml(url);
   return `
-    <figure style="margin:24px 0;${caption ? "" : ""}">
+    <figure style="margin:24px 0;">
       <img src="${safe}" alt="" style="${style}" />
       ${
         caption
-          ? `<figcaption style="${captionStyle || `margin-top:10px;text-align:center;font-size:11px;color:#78716c;`}">${escapeHtml(caption)}</figcaption>`
+          ? `<figcaption style="${captionStyle || "margin-top:10px;text-align:center;font-size:11px;color:#78716c;"}">${escapeHtml(caption)}</figcaption>`
           : ""
       }
     </figure>`;
+}
+
+function pageCaption(page: BookPageModel): string | undefined {
+  return "imageCaption" in page ? page.imageCaption : undefined;
+}
+
+function cornerOrnament(
+  position: { top?: string; left?: string; right?: string; bottom?: string },
+  rotate: string,
+  color: string,
+): string {
+  const pos = [
+    position.top ? `top:${position.top};` : "",
+    position.left ? `left:${position.left};` : "",
+    position.right ? `right:${position.right};` : "",
+    position.bottom ? `bottom:${position.bottom};` : "",
+  ].join("");
+  return `<span style="position:absolute;${pos}width:20px;height:20px;border-left:1px solid ${color};border-top:1px solid ${color};transform:${rotate};pointer-events:none;"></span>`;
 }
 
 function pageHtml(
@@ -87,57 +105,72 @@ function pageHtml(
   index: number,
   templateId: TemplateId,
 ): string {
-  if (templateId === "minimal-ink") return minimalHtml(page, index);
-  if (templateId === "pastel") return pastelHtml(page, index);
-  if (templateId === "ghibli") return ghibliHtml(page, index);
+  const id = normalizeTemplateId(templateId) || "elegant-gold";
+  if (id === "minimal-ink") return minimalHtml(page, index);
+  if (id === "cute") return cuteHtml(page, index);
+  if (id === "ghibli") return ghibliHtml(page, index);
   return elegantHtml(page, index);
 }
 
 function elegantHtml(page: BookPageModel, index: number): string {
   const t = THEMES["elegant-gold"];
+  const ornamentColor = t.accent + "80";
+  const ornaments = `
+    ${cornerOrnament({ top: "28px", left: "28px" }, "none", ornamentColor)}
+    ${cornerOrnament({ top: "28px", right: "28px" }, "rotate(90deg)", ornamentColor)}
+    ${cornerOrnament({ bottom: "28px", left: "28px" }, "rotate(-90deg)", ornamentColor)}
+    ${cornerOrnament({ bottom: "28px", right: "28px" }, "rotate(180deg)", ornamentColor)}
+  `;
   const wrap = (inner: string) => `
     <div data-pdf-page style="
       width:794px;min-height:1123px;box-sizing:border-box;padding:56px 64px;
       background:${t.bg};color:${t.ink};font-family:Georgia,'Times New Roman',serif;
       display:flex;flex-direction:column;position:relative;
     ">
-      <div style="position:absolute;inset:18px;border:1px solid ${t.accent}40;pointer-events:none;"></div>
-      <div style="position:absolute;inset:28px;border:1px solid ${t.accent}25;pointer-events:none;"></div>
+      <div style="position:absolute;inset:18px;border:1px solid ${t.accent}66;pointer-events:none;"></div>
+      <div style="position:absolute;inset:28px;border:1px solid ${t.accent}40;pointer-events:none;"></div>
+      ${ornaments}
       <div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;">${inner}</div>
       <div style="position:relative;z-index:1;margin-top:auto;padding-top:36px;text-align:center;font-size:11px;color:${t.muted};font-family:system-ui,sans-serif;">${index + 1}</div>
     </div>`;
 
+  const frameImg = (url?: string, caption?: string) =>
+    imgTag(
+      url,
+      "width:220px;height:280px;object-fit:cover;display:block;margin:0 auto;border:1px solid " +
+        t.accent +
+        "80;padding:10px;background:#faf6ee;box-shadow:inset 0 0 0 1px " +
+        t.accent +
+        "33;",
+      caption,
+      `margin-top:12px;text-align:center;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:${t.accentDeep};font-family:system-ui,sans-serif;`,
+    );
+
   if (page.type === "cover") {
     return wrap(`
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
-        <div style="font-size:10px;letter-spacing:0.35em;text-transform:uppercase;color:${t.accentDeep};font-family:system-ui,sans-serif;">ChatStory</div>
+        <div style="font-size:10px;letter-spacing:0.4em;text-transform:uppercase;color:${t.accentDeep};font-family:system-ui,sans-serif;">A private keepsake</div>
         ${
           page.imageUrl
-            ? imgTag(
-                page.imageUrl,
-                "width:220px;height:280px;object-fit:cover;display:block;border:1px solid " +
-                  t.accent +
-                  "66;padding:8px;background:" +
-                  t.bg +
-                  ";",
-              )
-            : `<div style="margin:28px 0;width:120px;height:160px;border:1px solid ${t.accent}66;display:flex;align-items:center;justify-content:center;font-size:36px;color:${t.accent};">❦</div>`
+            ? frameImg(page.imageUrl, pageCaption(page))
+            : `<div style="margin:28px 0;width:120px;height:160px;border:1px solid ${t.accent}80;display:flex;align-items:center;justify-content:center;font-size:36px;color:${t.accent};background:#faf6ee;">❦</div>`
         }
         <div style="font-size:40px;line-height:1.15;margin-top:8px;">${escapeHtml(page.title)}</div>
         <div style="margin-top:22px;display:flex;align-items:center;gap:10px;color:${t.accent};">
-          <span style="width:40px;height:1px;background:${t.accent};display:inline-block;"></span>
+          <span style="width:48px;height:1px;background:${t.accent};display:inline-block;"></span>
           <span>◆</span>
-          <span style="width:40px;height:1px;background:${t.accent};display:inline-block;"></span>
+          <span style="width:48px;height:1px;background:${t.accent};display:inline-block;"></span>
         </div>
+        <p style="margin-top:20px;max-width:320px;font-size:14px;font-style:italic;line-height:1.5;color:#6b5e4e;">Their words, kept gently, as they were written.</p>
       </div>`);
   }
 
   if (page.type === "dedication") {
     return wrap(`
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
-        <div style="font-size:10px;letter-spacing:0.3em;text-transform:uppercase;color:${t.accentDeep};font-family:system-ui,sans-serif;">Dedication</div>
-        <p style="max-width:420px;font-size:22px;font-style:italic;line-height:1.6;color:${t.soft};margin-top:28px;">${escapeHtml(page.text)}</p>
-        ${imgTag(page.imageUrl, "width:240px;height:300px;object-fit:cover;display:block;margin:0 auto;border:1px solid " + t.accent + "66;padding:8px;", page.imageCaption)}
+        <div style="font-size:10px;letter-spacing:0.35em;text-transform:uppercase;color:${t.accentDeep};font-family:system-ui,sans-serif;">Dedication</div>
+        <p style="max-width:420px;font-size:22px;font-style:italic;line-height:1.6;color:#2c241c;margin-top:28px;">${escapeHtml(page.text)}</p>
+        ${frameImg(page.imageUrl, pageCaption(page))}
       </div>`);
   }
 
@@ -145,20 +178,24 @@ function elegantHtml(page: BookPageModel, index: number): string {
     const quotes = page.quotes
       .map(
         (q) => `
-      <blockquote style="margin:0 0 22px;padding-left:16px;border-left:2px solid ${t.accent};text-align:left;">
-        <p style="margin:0;font-size:20px;line-height:1.45;">“${escapeHtml(q.text)}”</p>
-        <footer style="margin-top:8px;font-size:12px;color:${t.muted};font-family:system-ui,sans-serif;">
+      <blockquote style="margin:0 0 22px;padding:12px 12px 12px 18px;border-left:2px solid ${t.accent};background:#faf6eecc;text-align:left;">
+        <p style="margin:0;font-size:20px;line-height:1.5;">“${escapeHtml(q.text)}”</p>
+        <footer style="margin-top:8px;font-size:12px;color:${t.accentDeep};font-family:system-ui,sans-serif;">
           ${escapeHtml(q.author)} · ${escapeHtml(formatWhen(q.at))}
         </footer>
       </blockquote>`,
       )
       .join("");
     return wrap(`
-      <div style="text-align:center;font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:${t.accentDeep};font-family:system-ui,sans-serif;">Chapter</div>
+      <div style="text-align:center;font-size:10px;letter-spacing:0.32em;text-transform:uppercase;color:${t.accentDeep};font-family:system-ui,sans-serif;">A page from us</div>
       <div style="text-align:center;font-size:28px;margin-top:10px;">${escapeHtml(page.title)}</div>
-      <div style="width:56px;height:1px;background:${t.accent};margin:14px auto 0;"></div>
-      <p style="margin:28px 0 0;font-size:17px;line-height:1.7;color:${t.soft};text-align:center;">${escapeHtml(page.narration)}</p>
-      ${imgTag(page.imageUrl, "width:280px;height:200px;object-fit:cover;display:block;margin:0 auto;border:1px solid " + t.accent + "66;padding:8px;", page.imageCaption)}
+      <div style="margin:14px auto 0;display:flex;align-items:center;justify-content:center;gap:8px;color:${t.accent};">
+        <span style="width:40px;height:1px;background:${t.accent};"></span>
+        <span>✦</span>
+        <span style="width:40px;height:1px;background:${t.accent};"></span>
+      </div>
+      <p style="margin:28px 0 0;font-size:17px;line-height:1.75;color:#3f3428;text-align:center;">${escapeHtml(page.narration)}</p>
+      ${frameImg(page.imageUrl, pageCaption(page))}
       <div style="margin-top:28px;">${quotes}</div>
       ${
         page.milestone
@@ -170,17 +207,17 @@ function elegantHtml(page: BookPageModel, index: number): string {
   if (page.type === "numbers") {
     const row = (label: string, value: string) => `
       <div style="text-align:center;margin-bottom:22px;">
-        <div style="font-size:12px;color:${t.muted};font-family:system-ui,sans-serif;">${escapeHtml(label)}</div>
+        <div style="font-size:12px;color:${t.accentDeep};font-family:system-ui,sans-serif;">${escapeHtml(label)}</div>
         <div style="font-size:28px;margin-top:4px;">${escapeHtml(value)}</div>
       </div>`;
     return wrap(`
-      <div style="text-align:center;font-size:28px;">The Numbers</div>
+      <div style="text-align:center;font-size:28px;">What the days kept</div>
       <div style="width:56px;height:1px;background:${t.accent};margin:14px auto 28px;"></div>
-      ${imgTag(page.imageUrl, "width:280px;height:180px;object-fit:cover;display:block;margin:0 auto 24px;border:1px solid " + t.accent + "66;padding:8px;", page.imageCaption)}
-      ${row("Messages", page.totalMessages.toLocaleString("en-IN"))}
-      ${row("Days together", String(page.daysTogether))}
-      ${row("Longest silence", `${page.longestSilenceDays} days`)}
-      ${row("Most active day", formatDay(page.mostActiveDay || "") || "—")}
+      ${frameImg(page.imageUrl, pageCaption(page))}
+      ${row("Messages shared", page.totalMessages.toLocaleString("en-IN"))}
+      ${row("Days held together", String(page.daysTogether))}
+      ${row("Longest quiet", `${page.longestSilenceDays} days`)}
+      ${row("Most alive day", formatDay(page.mostActiveDay || "") || "—")}
       ${page.keyword ? row(`Times you said “${page.keyword}”`, page.keywordCount.toLocaleString("en-IN")) : ""}`);
   }
 
@@ -191,16 +228,16 @@ function elegantHtml(page: BookPageModel, index: number): string {
       <div style="display:flex;gap:14px;margin-bottom:16px;align-items:flex-start;">
         <div style="width:8px;height:8px;border-radius:50%;background:${t.accent};margin-top:8px;flex-shrink:0;"></div>
         <div>
-          <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:${t.accentDeep};font-family:system-ui,sans-serif;">${escapeHtml(formatDay(e.at))}</div>
+          <div style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:${t.accentDeep};font-family:system-ui,sans-serif;">${escapeHtml(formatDay(e.at))}</div>
           <div style="font-size:17px;margin-top:2px;">${escapeHtml(e.label)}</div>
         </div>
       </div>`,
       )
       .join("");
     return wrap(`
-      <div style="text-align:center;font-size:28px;">Timeline</div>
+      <div style="text-align:center;font-size:28px;">Along the way</div>
       <div style="width:56px;height:1px;background:${t.accent};margin:14px auto 28px;"></div>
-      ${imgTag(page.imageUrl, "width:280px;height:160px;object-fit:cover;display:block;margin:0 auto 24px;border:1px solid " + t.accent + "66;padding:8px;", page.imageCaption)}
+      ${frameImg(page.imageUrl, pageCaption(page))}
       ${events}`);
   }
 
@@ -211,21 +248,30 @@ function minimalHtml(page: BookPageModel, index: number): string {
   const t = THEMES["minimal-ink"];
   const foot = `<div style="margin-top:auto;padding-top:36px;text-align:center;font-size:11px;color:${t.muted};font-family:system-ui,sans-serif;">${index + 1}</div>`;
 
+  const stripImg = (url?: string, caption?: string) =>
+    imgTag(
+      url,
+      "width:100%;height:200px;object-fit:cover;display:block;border:1px solid #11111122;",
+      caption,
+      `margin-top:10px;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;`,
+    );
+
   if (page.type === "cover") {
     return `
-    <div data-pdf-page style="width:794px;min-height:1123px;box-sizing:border-box;background:#000;color:#fff;font-family:Georgia,serif;display:flex;flex-direction:column;position:relative;overflow:hidden;">
+    <div data-pdf-page style="width:794px;min-height:1123px;box-sizing:border-box;background:#000000;color:#ffffff;font-family:Georgia,serif;display:flex;flex-direction:column;position:relative;overflow:hidden;">
       ${
         page.imageUrl
           ? `<img src="${escapeHtml(page.imageUrl)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" />
-             <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.75),rgba(0,0,0,0.15),transparent);"></div>`
-          : `<div style="position:absolute;inset:0;background:radial-gradient(circle at 30% 20%,#333,transparent 55%),linear-gradient(#111,#000);"></div>`
+             <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.75),rgba(0,0,0,0.25),transparent);"></div>`
+          : `<div style="position:absolute;inset:0;background:radial-gradient(circle at 30% 20%,#333333,transparent 55%),linear-gradient(#161616,#050505);"></div>`
       }
       <div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:72px;">
-        <div style="font-size:10px;letter-spacing:0.4em;text-transform:uppercase;color:rgba(255,255,255,0.55);font-family:system-ui,sans-serif;">ChatStory</div>
+        <div style="font-size:10px;letter-spacing:0.4em;text-transform:uppercase;color:rgba(255,255,255,0.5);font-family:system-ui,sans-serif;">Still yours</div>
         <div style="margin-top:18px;font-size:52px;line-height:0.95;max-width:520px;">${escapeHtml(page.title)}</div>
-        <div style="margin-top:28px;width:64px;height:1px;background:rgba(255,255,255,0.5);"></div>
+        <p style="margin-top:20px;max-width:400px;font-size:16px;font-style:italic;line-height:1.5;color:rgba(255,255,255,0.7);">A book of messages that refused to stay ordinary.</p>
+        <div style="margin-top:28px;width:64px;height:1px;background:rgba(255,255,255,0.45);"></div>
       </div>
-      <div style="position:relative;z-index:1;padding:0 0 40px;text-align:center;font-size:11px;color:rgba(255,255,255,0.4);font-family:system-ui,sans-serif;">${index + 1}</div>
+      <div style="position:relative;z-index:1;padding:0 0 40px;text-align:center;font-size:11px;color:rgba(255,255,255,0.35);font-family:system-ui,sans-serif;">${index + 1}</div>
     </div>`;
   }
 
@@ -236,10 +282,10 @@ function minimalHtml(page: BookPageModel, index: number): string {
 
   if (page.type === "dedication") {
     return wrap(`
-      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;border-left:4px solid #111;padding-left:28px;">
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;border-left:4px solid #111111;padding-left:28px;">
         <div style="font-size:10px;letter-spacing:0.35em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">For you</div>
         <p style="max-width:460px;font-size:30px;line-height:1.25;margin-top:20px;">${escapeHtml(page.text)}</p>
-        ${imgTag(page.imageUrl, "width:100%;max-height:220px;object-fit:cover;display:block;border:1px solid #11111122;", page.imageCaption, `margin-top:10px;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;`)}
+        ${stripImg(page.imageUrl, pageCaption(page))}
       </div>`);
   }
 
@@ -247,25 +293,25 @@ function minimalHtml(page: BookPageModel, index: number): string {
     const quotes = page.quotes
       .map(
         (q) => `
-      <div style="margin:0 0 36px;">
-        <p style="margin:0;font-size:34px;line-height:1.2;max-width:560px;">${escapeHtml(q.text)}</p>
-        <div style="margin-top:12px;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">
+      <div style="margin:0 0 40px;">
+        <p style="margin:0;font-size:36px;line-height:1.15;max-width:560px;">${escapeHtml(q.text)}</p>
+        <div style="margin-top:14px;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">
           ${escapeHtml(q.author)} · ${escapeHtml(formatWhen(q.at))}
         </div>
       </div>`,
       )
       .join("");
     return wrap(`
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #111;padding-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #111111;padding-bottom:16px;">
         <div>
-          <div style="font-size:10px;letter-spacing:0.35em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">Chapter</div>
+          <div style="font-size:10px;letter-spacing:0.35em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">Hold this page</div>
           <div style="font-size:36px;line-height:1.05;margin-top:8px;max-width:480px;">${escapeHtml(page.title)}</div>
         </div>
         <div style="font-size:12px;color:${t.muted};font-family:system-ui,sans-serif;">${String(index + 1).padStart(2, "0")}</div>
       </div>
       <p style="margin:28px 0 0;font-size:14px;line-height:1.7;color:${t.soft};font-family:system-ui,sans-serif;max-width:520px;">${escapeHtml(page.narration)}</p>
-      ${imgTag(page.imageUrl, "width:100%;height:200px;object-fit:cover;display:block;border:1px solid #11111122;", page.imageCaption, `margin-top:10px;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;`)}
-      <div style="margin-top:36px;">${quotes}</div>`);
+      ${stripImg(page.imageUrl, pageCaption(page))}
+      <div style="margin-top:40px;">${quotes}</div>`);
   }
 
   if (page.type === "numbers") {
@@ -275,9 +321,9 @@ function minimalHtml(page: BookPageModel, index: number): string {
         <div style="font-size:28px;">${escapeHtml(value)}</div>
       </div>`;
     return wrap(`
-      <div style="font-size:10px;letter-spacing:0.35em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">Index</div>
+      <div style="font-size:10px;letter-spacing:0.35em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">The quiet math</div>
       <div style="font-size:44px;margin-top:8px;">Numbers</div>
-      ${imgTag(page.imageUrl, "width:100%;height:180px;object-fit:cover;display:block;border:1px solid #11111122;", page.imageCaption)}
+      ${stripImg(page.imageUrl, pageCaption(page))}
       <div style="margin-top:28px;border-bottom:1px solid #11111118;">
         ${row("Messages", page.totalMessages.toLocaleString("en-IN"))}
         ${row("Days together", String(page.daysTogether))}
@@ -293,60 +339,70 @@ function minimalHtml(page: BookPageModel, index: number): string {
         (e, i) => `
       <div style="display:grid;grid-template-columns:90px 1fr;gap:16px;padding:14px 0;border-top:1px solid #11111118;">
         <div style="font-size:12px;color:${t.muted};font-family:system-ui,sans-serif;">${escapeHtml(formatDay(e.at))}</div>
-        <div style="font-size:18px;"><span style="color:#bbb;margin-right:10px;">${String(i + 1).padStart(2, "0")}</span>${escapeHtml(e.label)}</div>
+        <div style="font-size:18px;"><span style="color:#bbbbbb;margin-right:10px;">${String(i + 1).padStart(2, "0")}</span>${escapeHtml(e.label)}</div>
       </div>`,
       )
       .join("");
     return wrap(`
       <div style="font-size:10px;letter-spacing:0.35em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">Chronology</div>
       <div style="font-size:44px;margin-top:8px;">Timeline</div>
-      ${imgTag(page.imageUrl, "width:100%;height:160px;object-fit:cover;display:block;border:1px solid #11111122;", page.imageCaption)}
+      ${stripImg(page.imageUrl, pageCaption(page))}
       <div style="margin-top:24px;">${events}</div>`);
   }
 
   return wrap("");
 }
 
-function pastelHtml(page: BookPageModel, index: number): string {
-  const t = THEMES.pastel;
+function cuteHtml(page: BookPageModel, index: number): string {
+  const t = THEMES.cute;
   const wrap = (inner: string) => `
     <div data-pdf-page style="width:794px;min-height:1123px;box-sizing:border-box;padding:48px 56px;background:${t.bg};color:${t.ink};font-family:Georgia,serif;display:flex;flex-direction:column;position:relative;overflow:hidden;">
-      <div style="position:absolute;right:-40px;top:-40px;width:180px;height:180px;border-radius:50%;background:#f3e4e2;"></div>
-      <div style="position:absolute;left:-50px;bottom:-60px;width:220px;height:220px;border-radius:50%;background:#efe0dc;"></div>
+      <div style="position:absolute;right:-40px;top:-40px;width:180px;height:180px;border-radius:50%;background:#ffd6e0cc;"></div>
+      <div style="position:absolute;left:-50px;bottom:-60px;width:220px;height:220px;border-radius:50%;background:#ffe8c8e6;"></div>
+      <div style="position:absolute;right:40px;top:100px;font-size:24px;color:#ff9eb580;pointer-events:none;">♡</div>
+      <div style="position:absolute;left:32px;bottom:120px;font-size:20px;color:#ffb86c73;pointer-events:none;">✿</div>
       <div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;">${inner}</div>
       <div style="position:relative;z-index:1;margin-top:auto;padding-top:28px;text-align:center;font-size:11px;color:${t.muted};font-family:system-ui,sans-serif;">${index + 1}</div>
     </div>`;
 
-  const polaroid = (url?: string, caption?: string) =>
-    url
-      ? `
-    <div style="margin:24px auto;width:260px;background:#fff;padding:12px 12px 28px;box-shadow:0 12px 30px rgba(74,48,48,0.12);transform:rotate(-2deg);">
-      <img src="${escapeHtml(url)}" alt="" style="width:100%;height:300px;object-fit:cover;display:block;" />
-      ${caption ? `<div style="margin-top:12px;text-align:center;font-size:13px;font-style:italic;color:${t.soft};">${escapeHtml(caption)}</div>` : ""}
-    </div>`
-      : "";
+  const heartFrame = (url?: string, caption?: string) => {
+    if (!url) return "";
+    return `
+    <figure style="position:relative;margin:24px auto;width:272px;">
+      <div style="position:absolute;inset:-12px;border-radius:28px;background:#ffd6e0b3;"></div>
+      <div style="position:relative;overflow:hidden;border-radius:28px;border:6px solid #ffffff;box-shadow:0 14px 36px rgba(232,120,140,0.25);">
+        <img src="${escapeHtml(url)}" alt="" style="width:100%;height:272px;object-fit:cover;display:block;" />
+      </div>
+      ${
+        caption
+          ? `<figcaption style="margin-top:12px;text-align:center;font-size:13px;font-style:italic;color:${t.muted};font-family:Georgia,serif;">♡ ${escapeHtml(caption)}</figcaption>`
+          : ""
+      }
+    </figure>`;
+  };
 
   if (page.type === "cover") {
     return wrap(`
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
         ${
           page.imageUrl
-            ? polaroid(page.imageUrl)
-            : `<div style="margin-bottom:16px;transform:rotate(-3deg);background:#f3e4e2;border-radius:24px;padding:48px 56px;font-size:48px;color:#c48b8b;">♡</div>`
+            ? heartFrame(page.imageUrl, pageCaption(page))
+            : `<div style="margin-bottom:16px;width:144px;height:144px;border-radius:50%;background:#ffd6e0;display:flex;align-items:center;justify-content:center;font-size:48px;color:${t.accent};box-shadow:inset 0 2px 8px rgba(232,120,140,0.15);">♡</div>`
         }
-        <div style="font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">ChatStory</div>
-        <div style="margin-top:12px;font-size:38px;">${escapeHtml(page.title)}</div>
+        <div style="font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:${t.accent};font-family:system-ui,sans-serif;">Our little book</div>
+        <div style="margin-top:12px;font-size:38px;color:${t.ink};">${escapeHtml(page.title)}</div>
+        <p style="margin-top:12px;font-size:14px;color:${t.muted};">made of texts &amp; soft nights</p>
       </div>`);
   }
 
   if (page.type === "dedication") {
     return wrap(`
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-        <div style="max-width:420px;background:rgba(255,255,255,0.82);border-radius:24px;padding:28px 32px;text-align:center;box-shadow:0 8px 24px rgba(74,48,48,0.06);">
-          <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">A note</div>
-          <p style="margin-top:14px;font-size:20px;font-style:italic;line-height:1.55;">${escapeHtml(page.text)}</p>
+        <div style="max-width:420px;background:#ffffffd9;border-radius:32px;padding:32px 36px;text-align:center;box-shadow:0 10px 30px rgba(232,120,140,0.12);">
+          <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:${t.accent};font-family:system-ui,sans-serif;">A tiny note</div>
+          <p style="margin-top:16px;font-size:20px;font-style:italic;line-height:1.55;color:${t.ink};">${escapeHtml(page.text)}</p>
         </div>
-        ${polaroid(page.imageUrl, page.imageCaption)}
+        ${heartFrame(page.imageUrl, pageCaption(page))}
       </div>`);
   }
 
@@ -354,38 +410,39 @@ function pastelHtml(page: BookPageModel, index: number): string {
     const quotes = page.quotes
       .map(
         (q, i) => `
-      <div style="background:rgba(255,255,255,0.88);border-radius:18px;padding:16px 18px;margin-bottom:14px;box-shadow:0 6px 18px rgba(74,48,48,0.05);transform:rotate(${i % 2 === 0 ? "-0.5" : "0.6"}deg);">
-        <p style="margin:0;font-size:18px;line-height:1.45;">“${escapeHtml(q.text)}”</p>
+      <div style="background:#ffffffe6;border-radius:24px;padding:16px 18px;margin-bottom:14px;box-shadow:0 8px 22px rgba(232,120,140,0.1);transform:rotate(${i % 2 === 0 ? "-0.8" : "0.8"}deg);">
+        <p style="margin:0;font-size:16px;color:${t.accent};">♡</p>
+        <p style="margin:8px 0 0;font-size:18px;line-height:1.45;color:${t.ink};">“${escapeHtml(q.text)}”</p>
         <div style="margin-top:8px;font-size:12px;color:${t.muted};font-family:system-ui,sans-serif;">${escapeHtml(q.author)} · ${escapeHtml(formatWhen(q.at))}</div>
       </div>`,
       )
       .join("");
     return wrap(`
-      <div style="background:#f3e4e2;border-radius:24px;padding:18px 20px;text-align:center;">
-        <div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">This chapter</div>
-        <div style="font-size:24px;margin-top:4px;">${escapeHtml(page.title)}</div>
+      <div style="background:#ffd6e0b3;border-radius:32px;padding:20px 22px;text-align:center;">
+        <div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:${t.accent};font-family:system-ui,sans-serif;">little chapter</div>
+        <div style="font-size:24px;margin-top:4px;color:${t.ink};">${escapeHtml(page.title)}</div>
       </div>
       <p style="margin:22px 0 0;font-size:17px;line-height:1.65;color:${t.soft};">${escapeHtml(page.narration)}</p>
-      ${polaroid(page.imageUrl, page.imageCaption)}
+      ${heartFrame(page.imageUrl, pageCaption(page))}
       <div style="margin-top:8px;">${quotes}</div>
       ${
         page.milestone
-          ? `<p style="margin-top:18px;text-align:center;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">${escapeHtml(page.milestone)}</p>`
+          ? `<p style="margin-top:18px;text-align:center;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:${t.accent};font-family:system-ui,sans-serif;">${escapeHtml(page.milestone)}</p>`
           : ""
       }`);
   }
 
   if (page.type === "numbers") {
     const card = (label: string, value: string) => `
-      <div style="background:rgba(255,255,255,0.78);border-radius:20px;padding:18px;text-align:center;box-shadow:0 6px 16px rgba(74,48,48,0.05);">
+      <div style="background:#ffffffe6;border-radius:24px;padding:18px;text-align:center;box-shadow:0 4px 12px rgba(232,120,140,0.08);">
         <div style="font-size:12px;color:${t.muted};font-family:system-ui,sans-serif;">${escapeHtml(label)}</div>
-        <div style="font-size:28px;margin-top:6px;">${escapeHtml(value)}</div>
+        <div style="font-size:28px;margin-top:6px;color:${t.ink};">${escapeHtml(value)}</div>
       </div>`;
     return wrap(`
-      <div style="background:#f3e4e2;border-radius:24px;padding:16px;text-align:center;">
-        <div style="font-size:24px;">Little numbers</div>
+      <div style="background:#ffd6e0b3;border-radius:32px;padding:16px;text-align:center;">
+        <div style="font-size:24px;color:${t.ink};">Cute little counts</div>
       </div>
-      ${polaroid(page.imageUrl, page.imageCaption)}
+      ${heartFrame(page.imageUrl, pageCaption(page))}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;">
         ${card("Messages", page.totalMessages.toLocaleString("en-IN"))}
         ${card("Days together", String(page.daysTogether))}
@@ -399,17 +456,18 @@ function pastelHtml(page: BookPageModel, index: number): string {
     const events = page.events
       .map(
         (e) => `
-      <div style="display:flex;gap:12px;background:rgba(255,255,255,0.82);border-radius:16px;padding:12px 16px;margin-bottom:10px;box-shadow:0 4px 12px rgba(74,48,48,0.04);">
+      <div style="display:flex;gap:12px;background:#ffffffe6;border-radius:20px;padding:12px 16px;margin-bottom:10px;box-shadow:0 4px 12px rgba(232,120,140,0.06);">
+        <span style="color:${t.accent};flex-shrink:0;">♡</span>
         <div style="width:90px;flex-shrink:0;font-size:12px;color:${t.muted};font-family:system-ui,sans-serif;">${escapeHtml(formatDay(e.at))}</div>
-        <div style="font-size:17px;">${escapeHtml(e.label)}</div>
+        <div style="font-size:17px;color:${t.ink};">${escapeHtml(e.label)}</div>
       </div>`,
       )
       .join("");
     return wrap(`
-      <div style="background:#f3e4e2;border-radius:24px;padding:16px;text-align:center;">
-        <div style="font-size:24px;">Our timeline</div>
+      <div style="background:#ffd6e0b3;border-radius:32px;padding:16px;text-align:center;">
+        <div style="font-size:24px;color:${t.ink};">Our sweet timeline</div>
       </div>
-      ${polaroid(page.imageUrl, page.imageCaption)}
+      ${heartFrame(page.imageUrl, pageCaption(page))}
       <div style="margin-top:12px;">${events}</div>`);
   }
 
@@ -419,47 +477,53 @@ function pastelHtml(page: BookPageModel, index: number): string {
 function ghibliHtml(page: BookPageModel, index: number): string {
   const t = THEMES.ghibli;
   const wrap = (inner: string) => `
-    <div data-pdf-page style="width:794px;min-height:1123px;box-sizing:border-box;padding:52px 56px;background:linear-gradient(180deg,#d4eef8 0%,#eef8f2 42%,#f7f3e8 100%);color:${t.ink};font-family:Georgia,serif;display:flex;flex-direction:column;position:relative;overflow:hidden;">
-      <div style="position:absolute;left:-20px;top:40px;width:160px;height:90px;border-radius:100%;background:rgba(255,255,255,0.7);"></div>
-      <div style="position:absolute;right:30px;top:90px;width:110px;height:60px;border-radius:100%;background:rgba(255,255,255,0.55);"></div>
-      <div style="position:absolute;left:0;right:0;bottom:0;height:110px;background:linear-gradient(180deg,transparent,#c5e0b8);"></div>
+    <div data-pdf-page style="width:794px;min-height:1123px;box-sizing:border-box;padding:52px 56px;background:linear-gradient(180deg,#cfeaf6 0%,#e8f6ef 38%,#f6f0df 72%,#d9e8c4 100%);color:${t.ink};font-family:Georgia,serif;display:flex;flex-direction:column;position:relative;overflow:hidden;">
+      <div style="position:absolute;left:-24px;top:32px;width:144px;height:80px;border-radius:100%;background:#ffffffbf;"></div>
+      <div style="position:absolute;right:24px;top:80px;width:96px;height:56px;border-radius:100%;background:#ffffff99;"></div>
+      <div style="position:absolute;left:33%;top:56px;width:80px;height:40px;border-radius:100%;background:#ffffff80;"></div>
+      <div style="position:absolute;left:0;right:0;bottom:0;height:128px;background:linear-gradient(180deg,transparent,#b7d59a);"></div>
       <div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;">${inner}</div>
-      <div style="position:relative;z-index:1;margin-top:auto;padding-top:28px;text-align:center;font-size:11px;color:${t.muted};font-family:system-ui,sans-serif;">${index + 1}</div>
+      <div style="position:relative;z-index:1;margin-top:auto;padding-top:28px;text-align:center;font-size:11px;color:${t.accentDeep};font-family:system-ui,sans-serif;">${index + 1}</div>
     </div>`;
 
-  const meadow = (url?: string, caption?: string) =>
-    url
-      ? `
-    <div style="margin:22px auto;width:280px;position:relative;">
-      <div style="border-radius:28px;overflow:hidden;border:6px solid #fff;box-shadow:0 16px 40px rgba(74,120,140,0.18);">
+  const meadowFrame = (url?: string, caption?: string) => {
+    if (!url) return "";
+    return `
+    <figure style="position:relative;margin:22px auto;width:280px;">
+      <div style="position:absolute;inset:-8px;border-radius:32px;background:linear-gradient(135deg,#a8d8ea80,#b8e0c866);"></div>
+      <div style="position:relative;border-radius:28px;overflow:hidden;border:4px solid #ffffff;box-shadow:0 16px 40px rgba(74,120,140,0.18);">
         <img src="${escapeHtml(url)}" alt="" style="width:100%;height:340px;object-fit:cover;display:block;" />
       </div>
-      ${caption ? `<div style="margin-top:12px;text-align:center;font-size:13px;font-style:italic;color:${t.soft};">${escapeHtml(caption)}</div>` : ""}
-    </div>`
-      : "";
+      ${
+        caption
+          ? `<figcaption style="margin-top:12px;text-align:center;font-size:13px;font-style:italic;color:#4a6b5c;">${escapeHtml(caption)}</figcaption>`
+          : ""
+      }
+    </figure>`;
+  };
 
   if (page.type === "cover") {
     return wrap(`
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;">
-        <div style="font-size:10px;letter-spacing:0.32em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">ChatStory · Meadow</div>
+        <div style="font-size:10px;letter-spacing:0.32em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">Under soft skies</div>
         ${
           page.imageUrl
-            ? meadow(page.imageUrl)
-            : `<div style="margin:28px 0;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,0.5);display:flex;align-items:center;justify-content:center;font-size:48px;color:${t.accent};">✿</div>`
+            ? meadowFrame(page.imageUrl, pageCaption(page))
+            : `<div style="margin:28px 0;width:176px;height:176px;border-radius:50%;background:#ffffff8c;display:flex;align-items:center;justify-content:center;font-size:48px;color:${t.accent};box-shadow:inset 0 2px 12px rgba(90,138,154,0.1);">✿</div>`
         }
         <div style="font-size:40px;line-height:1.15;max-width:480px;">${escapeHtml(page.title)}</div>
-        <div style="margin-top:14px;font-size:14px;color:${t.accentDeep};">A story under soft skies</div>
+        <p style="margin-top:16px;max-width:400px;font-size:15px;font-style:italic;line-height:1.55;color:#4a6b5c;">Like a path through grass after rain — quiet, green, still glowing.</p>
       </div>`);
   }
 
   if (page.type === "dedication") {
     return wrap(`
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-        <div style="max-width:440px;background:rgba(255,255,255,0.65);border-radius:32px;padding:32px;text-align:center;box-shadow:0 12px 40px rgba(90,138,154,0.12);">
+        <div style="max-width:440px;background:#ffffffb3;border-radius:32px;padding:32px;text-align:center;box-shadow:0 12px 40px rgba(90,138,154,0.12);">
           <div style="font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">For the road</div>
-          <p style="margin-top:18px;font-size:22px;font-style:italic;line-height:1.55;">${escapeHtml(page.text)}</p>
+          <p style="margin-top:18px;font-size:22px;font-style:italic;line-height:1.55;color:${t.ink};">${escapeHtml(page.text)}</p>
         </div>
-        ${meadow(page.imageUrl, page.imageCaption)}
+        ${meadowFrame(page.imageUrl, pageCaption(page))}
       </div>`);
   }
 
@@ -467,8 +531,8 @@ function ghibliHtml(page: BookPageModel, index: number): string {
     const quotes = page.quotes
       .map(
         (q) => `
-      <blockquote style="margin:0 0 14px;background:rgba(255,255,255,0.7);border:1px solid #b8d4c4;border-radius:22px;padding:16px 18px;">
-        <p style="margin:0;font-size:18px;line-height:1.45;">“${escapeHtml(q.text)}”</p>
+      <blockquote style="margin:0 0 14px;background:#ffffffbf;border:1px solid #b8d4c4;border-radius:24px;padding:16px 18px;">
+        <p style="margin:0;font-size:18px;line-height:1.45;color:${t.ink};">“${escapeHtml(q.text)}”</p>
         <footer style="margin-top:8px;font-size:12px;color:${t.accentDeep};font-family:system-ui,sans-serif;">
           ${escapeHtml(q.author)} · ${escapeHtml(formatWhen(q.at))}
         </footer>
@@ -476,12 +540,12 @@ function ghibliHtml(page: BookPageModel, index: number): string {
       )
       .join("");
     return wrap(`
-      <div style="background:rgba(255,255,255,0.55);border-radius:28px;padding:18px;text-align:center;">
+      <div style="background:#ffffff99;border-radius:28px;padding:18px;text-align:center;box-shadow:0 4px 16px rgba(90,138,154,0.06);">
         <div style="font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:${t.muted};font-family:system-ui,sans-serif;">A quiet chapter</div>
         <div style="font-size:26px;margin-top:6px;">${escapeHtml(page.title)}</div>
       </div>
       <p style="margin:24px 0 0;font-size:17px;line-height:1.7;color:${t.soft};">${escapeHtml(page.narration)}</p>
-      ${meadow(page.imageUrl, page.imageCaption)}
+      ${meadowFrame(page.imageUrl, pageCaption(page))}
       <div style="margin-top:8px;">${quotes}</div>
       ${
         page.milestone
@@ -492,14 +556,14 @@ function ghibliHtml(page: BookPageModel, index: number): string {
 
   if (page.type === "numbers") {
     const card = (label: string, value: string) => `
-      <div style="background:rgba(255,255,255,0.72);border-radius:22px;padding:18px;text-align:center;box-shadow:0 6px 16px rgba(90,138,154,0.08);">
+      <div style="background:#ffffffbf;border-radius:24px;padding:18px;text-align:center;box-shadow:0 6px 16px rgba(90,138,154,0.08);">
         <div style="font-size:12px;color:${t.muted};font-family:system-ui,sans-serif;">${escapeHtml(label)}</div>
-        <div style="font-size:28px;margin-top:6px;">${escapeHtml(value)}</div>
+        <div style="font-size:28px;margin-top:6px;color:${t.ink};">${escapeHtml(value)}</div>
       </div>`;
     return wrap(`
-      <div style="text-align:center;font-size:28px;">Little counts</div>
+      <div style="text-align:center;font-size:28px;color:${t.ink};">Little counts</div>
       <div style="text-align:center;font-size:14px;color:${t.accentDeep};margin-top:6px;">The soft math of your days</div>
-      ${meadow(page.imageUrl, page.imageCaption)}
+      ${meadowFrame(page.imageUrl, pageCaption(page))}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px;">
         ${card("Messages", page.totalMessages.toLocaleString("en-IN"))}
         ${card("Days together", String(page.daysTogether))}
@@ -513,15 +577,15 @@ function ghibliHtml(page: BookPageModel, index: number): string {
     const events = page.events
       .map(
         (e) => `
-      <div style="display:flex;gap:12px;background:rgba(255,255,255,0.72);border-radius:18px;padding:12px 16px;margin-bottom:10px;">
+      <div style="display:flex;gap:12px;background:#ffffffbf;border-radius:20px;padding:12px 16px;margin-bottom:10px;box-shadow:0 4px 12px rgba(90,138,154,0.06);">
         <div style="width:90px;flex-shrink:0;font-size:12px;color:${t.muted};font-family:system-ui,sans-serif;">${escapeHtml(formatDay(e.at))}</div>
-        <div style="font-size:17px;">${escapeHtml(e.label)}</div>
+        <div style="font-size:17px;color:${t.ink};">${escapeHtml(e.label)}</div>
       </div>`,
       )
       .join("");
     return wrap(`
-      <div style="text-align:center;font-size:28px;">Path through the days</div>
-      ${meadow(page.imageUrl, page.imageCaption)}
+      <div style="text-align:center;font-size:28px;color:${t.ink};">Path through the days</div>
+      ${meadowFrame(page.imageUrl, pageCaption(page))}
       <div style="margin-top:12px;">${events}</div>`);
   }
 
@@ -535,6 +599,8 @@ export async function downloadBookPdfFromPages(
   onProgress?: (done: number, total: number) => void,
 ) {
   if (!pages.length) throw new Error("No pages to export");
+
+  const id = normalizeTemplateId(templateId) || "elegant-gold";
 
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
     import("html2canvas"),
@@ -551,10 +617,10 @@ export async function downloadBookPdfFromPages(
     const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const bg = theme(templateId).bg;
+    const bg = theme(id).bg;
 
     for (let i = 0; i < pages.length; i++) {
-      host.innerHTML = pageHtml(pages[i], i, templateId);
+      host.innerHTML = pageHtml(pages[i], i, id);
       const node = host.firstElementChild as HTMLElement;
       const canvas = await html2canvas(node, {
         scale: 2,

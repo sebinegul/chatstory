@@ -8,18 +8,21 @@ export function ChatStoryMark({
   href?: string;
 }) {
   const sizes = {
-    sm: "text-xl",
-    md: "text-2xl",
-    lg: "text-4xl",
-    hero: "text-6xl sm:text-7xl md:text-8xl",
+    sm: "text-lg",
+    md: "text-xl",
+    lg: "text-3xl",
+    hero: "text-5xl sm:text-6xl md:text-7xl",
   };
 
   return (
     <Link
       href={href}
-      className={`font-[family-name:var(--font-cormorant)] font-semibold tracking-tight text-[var(--ink)] ${sizes[size]}`}
+      className={`font-[family-name:var(--font-space)] font-semibold tracking-tight text-[var(--ink)] ${sizes[size]}`}
     >
-      ChatStory
+      Chat
+      <span className="bg-gradient-to-r from-[#2dd4bf] to-[#38bdf8] bg-clip-text text-transparent">
+        Story
+      </span>
     </Link>
   );
 }

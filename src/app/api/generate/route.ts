@@ -74,12 +74,16 @@ export async function POST(req: NextRequest) {
 
     let coverImage = config.coverImage || undefined;
     if (isGhibliTemplate(config.templateId)) {
-      const styled = await stylizeBookImagesGhibli({
-        coverImage,
-        extraImages: media,
-      });
-      coverImage = styled.coverImage;
-      media = (styled.extraImages || []) as ExtraBookImage[];
+      try {
+        const styled = await stylizeBookImagesGhibli({
+          coverImage,
+          extraImages: media,
+        });
+        coverImage = styled.coverImage;
+        media = (styled.extraImages || []) as ExtraBookImage[];
+      } catch (err) {
+        console.warn("Ghibli stylize skipped", err);
+      }
     }
 
     const rawBook = await bookGenerator.generateBook({
@@ -95,7 +99,7 @@ export async function POST(req: NextRequest) {
       })),
       aiChooses,
       templateId: config.templateId as TemplateId,
-      keyword: config.keyword,
+      keyword: config.keyword || "",
       coverImage,
       extraImages: media,
     });

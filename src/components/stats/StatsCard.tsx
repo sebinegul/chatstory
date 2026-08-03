@@ -11,8 +11,6 @@ export function StatsCard({
     lastAt: string;
     longestSilenceDays: number;
     mostActiveDay: string;
-    keyword: string;
-    keywordCount: number;
   };
 }) {
   const items = [
@@ -29,22 +27,15 @@ export function StatsCard({
     { label: "Most active day", value: stats.mostActiveDay || "—" },
   ];
 
-  if (stats.keyword) {
-    items.push({
-      label: `Times you said “${stats.keyword}”`,
-      value: stats.keywordCount.toLocaleString("en-IN"),
-    });
-  }
-
   return (
-    <div className="overflow-hidden rounded-sm bg-[var(--paper-deep)] px-6 py-8 shadow-[0_1px_0_var(--rule)]">
-      <p className="font-[family-name:var(--font-jost)] text-xs uppercase tracking-[0.2em] text-[var(--gold-deep)]">
+    <div className="overflow-hidden rounded-[1.25rem] border border-[var(--border-glass)] bg-white/[0.04] px-6 py-8">
+      <p className="font-[family-name:var(--font-space)] text-xs uppercase tracking-[0.2em] text-[#2dd4bf]">
         Our WhatsApp in numbers
       </p>
       <div className="mt-6 grid gap-6 sm:grid-cols-2">
         {items.map((item) => (
           <div key={item.label}>
-            <p className="font-[family-name:var(--font-cormorant)] text-3xl text-[var(--ink)] sm:text-4xl">
+            <p className="font-[family-name:var(--font-space)] text-3xl font-semibold text-[var(--ink)] sm:text-4xl">
               {item.value}
             </p>
             <p className="mt-1 text-sm text-[var(--muted)]">{item.label}</p>

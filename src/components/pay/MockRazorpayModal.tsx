@@ -16,26 +16,26 @@ export function MockRazorpayModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(28,25,23,0.45)] p-4 sm:items-center">
-      <div className="w-full max-w-md rounded-sm bg-[var(--paper)] p-6 shadow-xl">
-        <p className="font-[family-name:var(--font-jost)] text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center">
+      <div className="glass-panel-strong w-full max-w-md rounded-[1.5rem] p-6">
+        <p className="font-[family-name:var(--font-space)] text-xs uppercase tracking-[0.2em] text-[#2dd4bf]">
           Mock Razorpay
         </p>
-        <h2 className="mt-2 font-[family-name:var(--font-cormorant)] text-3xl">
+        <h2 className="mt-2 font-[family-name:var(--font-space)] text-2xl font-semibold">
           Unlock your book
         </h2>
         <p className="mt-2 text-sm text-[var(--ink-soft)]">
           Pay {amountLabel} with UPI, cards, or netbanking. This is a mock
           checkout for the preview build.
         </p>
-        <p className="mt-6 font-[family-name:var(--font-cormorant)] text-4xl text-[var(--ink)]">
+        <p className="mt-6 font-[family-name:var(--font-space)] text-4xl font-semibold text-[var(--ink)]">
           {amountLabel}
         </p>
         <div className="mt-8 flex gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-sm border border-[var(--rule)] px-4 py-3 text-sm"
+            className="btn-ghost flex-1 cursor-pointer px-4 py-3 text-sm"
             disabled={busy}
           >
             Cancel
@@ -44,7 +44,7 @@ export function MockRazorpayModal({
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="flex-1 rounded-sm bg-[var(--gold-deep)] px-4 py-3 text-sm text-[var(--paper)]"
+            className="btn-primary flex-1 cursor-pointer px-4 py-3 text-sm"
           >
             {busy ? "Confirming..." : "Confirm payment"}
           </button>

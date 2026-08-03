@@ -29,7 +29,6 @@ export default function ConfigurePage() {
   const [personA, setPersonA] = useState("");
   const [personB, setPersonB] = useState("");
   const [relationship, setRelationship] = useState<RelationshipId>("couple");
-  const [keyword, setKeyword] = useState("");
   const [aiChooses, setAiChooses] = useState(true);
   const [templateId, setTemplateId] = useState<TemplateId>("elegant-gold");
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([
@@ -48,8 +47,6 @@ export default function ConfigurePage() {
   const [compressing, setCompressing] = useState<string | null>(null);
 
   useEffect(() => {
-    const savedKw = sessionStorage.getItem("chatstoryKeyword");
-    if (savedKw) setKeyword(savedKw);
     const raw = sessionStorage.getItem("chatstoryParticipants");
     if (!raw) return;
     try {
@@ -145,14 +142,12 @@ export default function ConfigurePage() {
                 })),
           aiChooses,
           templateId,
-          keyword,
           coverImage: coverImage || "",
           extraImages,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not save");
-      sessionStorage.setItem("chatstoryKeyword", keyword.trim());
       router.push("/create/generating");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save");
@@ -383,27 +378,12 @@ export default function ConfigurePage() {
         ))}
       </div>
 
-      <label className="mt-8 block text-sm">
-        <span className="text-[var(--muted)]">
-          Keyword to celebrate (shapes the whole book)
-        </span>
-        <input
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-transparent px-3 py-2"
-          placeholder="Auto-detected from your chat"
-        />
-        <span className="mt-2 block text-xs text-[var(--muted)]">
-          Titles, narration, and the Numbers page will orbit this word.
-        </span>
-      </label>
-
       {error && <p className="mt-4 text-sm text-[var(--danger)]">{error}</p>}
       <button
         type="button"
         onClick={submit}
         disabled={busy || !!compressing}
-        className="mt-8 rounded-sm bg-[var(--gold-deep)] px-6 py-3 text-sm text-[var(--paper)] disabled:opacity-60"
+        className="mt-8 btn-primary cursor-pointer px-6 py-3 text-sm disabled:opacity-60"
       >
         {busy ? "Saving..." : "Build my book"}
       </button>

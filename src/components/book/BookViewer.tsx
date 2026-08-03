@@ -43,7 +43,7 @@ export function BookViewer({
           type="button"
           disabled={index === 0}
           onClick={() => setIndex((i) => Math.max(0, i - 1))}
-          className="rounded-sm border border-[var(--rule)] px-4 py-2 text-sm disabled:opacity-40"
+          className="btn-ghost cursor-pointer rounded-full px-4 py-2 text-sm disabled:opacity-40"
         >
           Previous
         </button>
@@ -54,7 +54,7 @@ export function BookViewer({
           type="button"
           disabled={index >= pages.length - 1}
           onClick={() => setIndex((i) => Math.min(pages.length - 1, i + 1))}
-          className="rounded-sm border border-[var(--rule)] px-4 py-2 text-sm disabled:opacity-40"
+          className="btn-ghost cursor-pointer rounded-full px-4 py-2 text-sm disabled:opacity-40"
         >
           Next
         </button>
@@ -62,7 +62,7 @@ export function BookViewer({
 
       {isWatermarked && onRename && onReorder && onRegenerate ? (
         <div className="mt-10 rounded-sm border border-[var(--rule)] p-5">
-          <p className="font-[family-name:var(--font-jost)] text-xs uppercase tracking-[0.18em] text-[var(--gold-deep)]">
+          <p className="font-[family-name:var(--font-dm)] text-xs uppercase tracking-[0.18em] text-[var(--gold-deep)]">
             Tweak chapters
           </p>
           <ul className="mt-4 space-y-3">

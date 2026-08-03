@@ -1,6 +1,18 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, EB_Garamond, Jost } from "next/font/google";
+import { Space_Grotesk, DM_Sans, Cormorant_Garamond, EB_Garamond } from "next/font/google";
 import "./globals.css";
+
+const space = Space_Grotesk({
+  variable: "--font-space",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const dm = DM_Sans({
+  variable: "--font-dm",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
 
 const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
@@ -10,12 +22,6 @@ const cormorant = Cormorant_Garamond({
 
 const ebGaramond = EB_Garamond({
   variable: "--font-eb-garamond",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const jost = Jost({
-  variable: "--font-jost",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
@@ -33,9 +39,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${cormorant.variable} ${ebGaramond.variable} ${jost.variable} h-full antialiased`}
+      className={`${space.variable} ${dm.variable} ${cormorant.variable} ${ebGaramond.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[var(--paper)] text-[var(--ink)]">
+      <body className="flex min-h-full flex-col bg-[var(--paper)] text-[var(--ink)]">
         {children}
       </body>
     </html>

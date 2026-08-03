@@ -69,7 +69,7 @@ export default function PayPage() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-8 rounded-sm bg-[var(--gold-deep)] px-6 py-3 text-sm text-[var(--paper)]"
+        className="mt-8 btn-primary cursor-pointer px-6 py-3 text-sm"
       >
         Pay Rs.49
       </button>

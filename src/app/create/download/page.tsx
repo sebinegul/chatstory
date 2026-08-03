@@ -108,7 +108,7 @@ export default function DownloadPage() {
           type="button"
           onClick={() => void onDownload()}
           disabled={busy || loading || pages.length === 0}
-          className="rounded-sm bg-[var(--gold-deep)] px-6 py-3 text-sm text-[var(--paper)] disabled:opacity-60"
+          className="btn-primary cursor-pointer px-6 py-3 text-sm disabled:opacity-60"
         >
           {busy ? "Preparing PDF..." : "Download PDF"}
         </button>

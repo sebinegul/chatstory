@@ -67,7 +67,8 @@ export interface GenerateBookInput {
   chapters: ChapterIdea[];
   aiChooses: boolean;
   templateId: TemplateId;
-  keyword: string;
+  /** Optional; no longer shapes titles/narration. Kept for Numbers page auto-stat. */
+  keyword?: string;
   coverImage?: string;
   extraImages?: ExtraBookImage[];
 }

@@ -1,10 +1,15 @@
 import { computeStats } from "@/lib/scanner/stats";
 import { buildWindows } from "@/lib/scanner/windows";
-import { relationshipVoice } from "@/lib/relationships";
+import {
+  relationshipStoryGuide,
+  relationshipVoice,
+} from "@/lib/relationships";
 import { formatDayKeyDMY } from "@/lib/format-date";
 import {
   FREE_MODEL,
+  FREE_MODEL_CANDIDATES,
   STORY_MODEL,
+  STORY_MODEL_CANDIDATES,
   hasOpenRouterKey,
   openRouterChat,
   parseJsonFromModel,
@@ -12,9 +17,15 @@ import {
 import {
   generateBook as mockGenerateBook,
   messagesInRange,
+  narrationForChapter,
   pickQuotes,
   resolveChapters,
 } from "./mock-generator";
+import {
+  detectChatLanguage,
+  languagePromptBlock,
+  type DetectedLanguage,
+} from "./detect-language";
 import type { BookPageModel, GenerateBookInput, GeneratedBook } from "./types";
 
 function noEmDash(text: string): string {
@@ -38,20 +49,27 @@ type StoryPayload = {
 
 async function freeTitlesAndDedication(
   input: GenerateBookInput,
+  lang: DetectedLanguage,
 ): Promise<TitlePayload> {
-  const voice = relationshipVoice(input.relationship || "couple");
+  const relationship = input.relationship || "couple";
+  const voice = relationshipVoice(relationship);
+  const guide = relationshipStoryGuide(relationship);
   const raw = await openRouterChat({
     model: FREE_MODEL,
+    fallbacks: FREE_MODEL_CANDIDATES,
     system: `You name intimate keepsake books from real WhatsApp chats.
 Voice: ${voice}
+Relationship context: ${guide}
+${languagePromptBlock(lang)}
 The title should feel like a private dedication someone would emboss on a cover, not a blog headline.
 Rules: no em dashes, no cringe, no invented facts, no exclamation marks.
 Return JSON only:
 {"titleOptions":["...","...","..."],"dedication":"..."}`,
     user: `People: ${input.personA} and ${input.personB}
-Relationship: ${input.relationship}
-Celebrate keyword (emotional through-line): "${input.keyword || "none"}"
-Suggest 3 short book titles (3-6 words) and one soft dedication line that could make someone pause.`,
+Relationship type: ${relationship}
+Detected chat language: ${lang.label}
+Suggest 3 short book titles (3-6 words) and one soft dedication line that fits THIS relationship.
+Write titles and dedication in ${lang.writeIn}.`,
     temperature: 0.75,
   });
   const parsed = parseJsonFromModel<TitlePayload>(raw);
@@ -66,43 +84,64 @@ Suggest 3 short book titles (3-6 words) and one soft dedication line that could 
 async function storyNarrations(
   input: GenerateBookInput,
   chapters: { title: string; quotes: string[]; sample: string[] }[],
+  lang: DetectedLanguage,
 ): Promise<StoryPayload> {
-  const voice = relationshipVoice(input.relationship || "couple");
-  const raw = await openRouterChat({
-    model: STORY_MODEL,
-    system: `You write intimate chapter openings for a printed keepsake made from a real WhatsApp chat.
+  const relationship = input.relationship || "couple";
+  const voice = relationshipVoice(relationship);
+  const guide = relationshipStoryGuide(relationship);
+  const BATCH = 4;
+  const merged: { title: string; narration: string }[] = [];
 
-This is not a summary. It is the soft voice between the quotes. The reader should feel closeness, longing, humor, or quiet care.
+  for (let i = 0; i < chapters.length; i += BATCH) {
+    const batch = chapters.slice(i, i + BATCH);
+    const raw = await openRouterChat({
+      model: STORY_MODEL,
+      fallbacks: STORY_MODEL_CANDIDATES,
+      system: `You write intimate chapter openings for a printed keepsake made from a real WhatsApp chat.
+
+This is not a summary. It is the soft voice between the quotes — grounded only in the sample lines.
 
 Voice: ${voice}
+RELATIONSHIP (must follow): ${guide}
+${languagePromptBlock(lang)}
 
-Write 4-6 sentences per chapter (about 80-140 words). Vary rhythm: one short line, then a longer one. End in a way that opens onto the quotes that follow.
+Write 4-6 sentences per chapter. Specific, clear, emotionally true to the samples.
+Each chapter must feel different because the samples are different.
 
 Hard rules:
 - No em dashes
 - Never invent quotes, dates, events, or feelings the samples do not support
-- Name concrete details from the samples: a phrase they used, a time of night, a joke, a habit, a silence, a place, a pet name
+- Ground at least two sentences in concrete sample details (phrase, time, joke, habit, silence)
 - Do not repeat the upcoming quotes verbatim
-- When samples are thin, still write 3 careful sentences about what little remains
-- Banned phrases: journey, tapestry, delve, testament, cherished memories, in today's world, forever etched, whirlwind, soulmate (unless they said it)
-- Celebrate keyword "${input.keyword || ""}" only when samples support it. Weave it naturally once at most
+- When samples are thin, write less — 3 careful sentences
+- Banned phrases: journey, tapestry, delve, testament, cherished memories, in today's world, forever etched, whirlwind, soulmate (unless they said it), "ordinary care", "forwards, the late replies"
+- Do NOT force a celebrate-word theme
 - Prefer warmth over drama. Prefer specificity over adjectives
 
-Return JSON only: {"chapters":[{"title":"...","narration":"..."}]}`,
-    user: JSON.stringify({
-      personA: input.personA,
-      personB: input.personB,
-      relationship: input.relationship,
-      celebrateKeyword: input.keyword || "",
-      chapters: chapters.map((c) => ({
-        title: c.title,
-        upcomingQuotes: c.quotes.slice(0, 3),
-        sampleLines: c.sample.slice(0, 24),
-      })),
-    }),
-    temperature: 0.78,
-  });
-  return parseJsonFromModel<StoryPayload>(raw);
+Return JSON only: {"chapters":[{"title":"...","narration":"..."}]}
+Use each chapter title EXACTLY as given. Return one object per chapter, in the same order.
+Narration language: ${lang.writeIn}.`,
+      user: JSON.stringify({
+        personA: input.personA,
+        personB: input.personB,
+        relationship,
+        language: lang.label,
+        writeIn: lang.writeIn,
+        chapters: batch.map((c) => ({
+          title: c.title,
+          upcomingQuotes: c.quotes.slice(0, 3),
+          sampleLines: c.sample.slice(0, 20),
+        })),
+      }),
+      temperature: 0.7,
+    });
+    const parsed = parseJsonFromModel<StoryPayload>(raw);
+    for (const c of parsed.chapters || []) {
+      if (c?.title && c?.narration) merged.push(c);
+    }
+  }
+
+  return { chapters: merged };
 }
 
 export async function generateBookWithModels(
@@ -114,9 +153,10 @@ export async function generateBookWithModels(
 
   try {
     const relationship = input.relationship || "couple";
+    const lang = detectChatLanguage(input.chat);
     const chapterIdeas = resolveChapters(input);
     const windows = buildWindows(input.chat, input.specialDates);
-    const stats = computeStats(input.chat, input.keyword || undefined);
+    const stats = computeStats(input.chat, undefined);
 
     const prepared = chapterIdeas.map((chapter) => {
       let windowMessages = messagesInRange(
@@ -141,7 +181,7 @@ export async function generateBookWithModels(
     let titleOptions: string[];
     let dedication: string;
     try {
-      const free = await freeTitlesAndDedication(input);
+      const free = await freeTitlesAndDedication(input, lang);
       titleOptions =
         free.titleOptions.length >= 1
           ? free.titleOptions
@@ -157,6 +197,8 @@ export async function generateBookWithModels(
     }
 
     // Story model: main narrations only
+    // Match by index first — models often rewrite titles slightly.
+    const narrationsByIndex: string[] = [];
     let narrationByTitle = new Map<string, string>();
     try {
       const story = await storyNarrations(
@@ -166,18 +208,19 @@ export async function generateBookWithModels(
           quotes: p.quotes.map((q) => q.text),
           sample: p.sample,
         })),
+        lang,
       );
-      for (const c of story.chapters || []) {
-        if (c.title && c.narration) {
-          narrationByTitle.set(c.title, noEmDash(c.narration));
+      (story.chapters || []).forEach((c, i) => {
+        if (!c?.narration) return;
+        const text = noEmDash(String(c.narration));
+        narrationsByIndex[i] = text;
+        if (c.title) narrationByTitle.set(String(c.title).trim(), text);
+        if (prepared[i]) {
+          narrationByTitle.set(prepared[i].chapter.title, text);
         }
-      }
+      });
     } catch (err) {
       console.warn("Story model failed, falling back chapter narrations", err);
-      const mock = await mockGenerateBook(input);
-      for (const p of mock.pages) {
-        if (p.type === "chapter") narrationByTitle.set(p.title, p.narration);
-      }
     }
 
     const title = titleOptions[0];
@@ -188,17 +231,20 @@ export async function generateBookWithModels(
 
     const timeline: { at: string; label: string }[] = [];
 
-    for (const p of prepared) {
-      const fallback = (
-        await mockGenerateBook({
-          ...input,
-          aiChooses: false,
-          chapters: [p.chapter],
-        })
-      ).pages.find((x) => x.type === "chapter");
+    for (let i = 0; i < prepared.length; i++) {
+      const p = prepared[i];
       const narration =
+        narrationsByIndex[i] ||
         narrationByTitle.get(p.chapter.title) ||
-        (fallback && fallback.type === "chapter" ? fallback.narration : "");
+        narrationForChapter({
+          personA: input.personA,
+          personB: input.personB,
+          title: p.chapter.title,
+          relationship,
+          quotes: p.quotes,
+          messageCount: p.windowMessages.length,
+          chapterIndex: i,
+        });
 
       pages.push({
         type: "chapter",
@@ -227,19 +273,32 @@ export async function generateBookWithModels(
       let narration = narrationByTitle.get(w.label);
       if (!narration) {
         try {
-          const one = await storyNarrations(input, [
-            {
-              title: w.label,
-              quotes: quotes.map((q) => q.text),
-              sample: w.messages.slice(0, 12).map((m) => `${m.author}: ${m.body}`),
-            },
-          ]);
+          const one = await storyNarrations(
+            input,
+            [
+              {
+                title: w.label,
+                quotes: quotes.map((q) => q.text),
+                sample: w.messages.slice(0, 12).map((m) => `${m.author}: ${m.body}`),
+              },
+            ],
+            lang,
+          );
           narration = noEmDash(one.chapters?.[0]?.narration || "");
         } catch {
-          narration = noEmDash(
-            `${w.label} gathers the messages around this day for ${input.personA} and ${input.personB}.`,
-          );
+          narration = "";
         }
+      }
+      if (!narration) {
+        narration = narrationForChapter({
+          personA: input.personA,
+          personB: input.personB,
+          title: w.label,
+          relationship,
+          quotes,
+          messageCount: w.messages.length,
+          chapterIndex: pages.filter((p) => p.type === "chapter").length,
+        });
       }
       pages.push({
         type: "chapter",
@@ -267,11 +326,12 @@ export async function generateBookWithModels(
       daysTogether,
       longestSilenceDays: stats.longestSilenceDays,
       mostActiveDay: stats.mostActiveDay,
-      keyword: stats.keyword,
-      keywordCount: stats.keywordCount,
+      keyword: "",
+      keywordCount: 0,
     });
     pages.push({ type: "timeline", events: timeline });
 
+    console.info(`[chatstory] language=${lang.code} (${lang.label}) relationship=${relationship}`);
     void relationship;
     return { title, titleOptions, dedication, pages };
   } catch (err) {

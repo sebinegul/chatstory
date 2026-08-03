@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionOrThrow } from "@/lib/session";
-import { isTemplateId } from "@/lib/templates/registry";
+import { isTemplateId, normalizeTemplateId } from "@/lib/templates/registry";
 import { isRelationshipId } from "@/lib/relationships";
 import type { ExtraBookImage, ImagePlacement } from "@/lib/media";
 
@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
     await getSessionOrThrow(sessionId);
 
     const chaptersToStore = aiChooses ? [] : chapters;
+    const normalizedTemplate = normalizeTemplateId(String(templateId))!;
 
     await prisma.bookConfig.upsert({
       where: { sessionId },
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
         relationship: String(relationship),
         specialDatesJson: JSON.stringify(specialDates),
         chaptersJson: JSON.stringify(chaptersToStore),
-        templateId,
+        templateId: normalizedTemplate,
         keyword: String(keyword || ""),
         coverImage: cover,
         mediaJson: JSON.stringify(media),
@@ -105,7 +106,7 @@ export async function POST(req: NextRequest) {
         relationship: String(relationship),
         specialDatesJson: JSON.stringify(specialDates),
         chaptersJson: JSON.stringify(chaptersToStore),
-        templateId,
+        templateId: normalizedTemplate,
         keyword: String(keyword || ""),
         coverImage: cover,
         mediaJson: JSON.stringify(media),

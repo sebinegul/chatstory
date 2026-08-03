@@ -87,7 +87,7 @@ export default function PreviewPage() {
         type="button"
         onClick={() => router.push("/create/pay")}
         disabled={loading || pages.length === 0}
-        className="mt-10 rounded-sm bg-[var(--gold-deep)] px-6 py-3 text-sm text-[var(--paper)] disabled:opacity-60"
+        className="mt-10 btn-primary cursor-pointer px-6 py-3 text-sm disabled:opacity-60"
       >
         Unlock full book — Rs.49
       </button>
