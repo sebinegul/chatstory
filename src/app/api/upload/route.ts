@@ -130,23 +130,31 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error("upload failed", err);
+    const msg = err instanceof Error ? err.message : String(err);
     const prismaCode =
       err && typeof err === "object" && "code" in err
         ? String((err as { code: unknown }).code)
         : "";
+    const unreachable =
+      /Can't reach database server|PrismaClientInitializationError|DATABASE_URL|Environment variable not found/i.test(
+        msg,
+      ) ||
+      (err &&
+        typeof err === "object" &&
+        "name" in err &&
+        String((err as { name: unknown }).name) ===
+          "PrismaClientInitializationError");
     if (
+      unreachable ||
       prismaCode === "P1001" ||
       prismaCode === "P1000" ||
-      prismaCode === "P1010" ||
-      /DATABASE_URL|Environment variable not found/i.test(
-        err instanceof Error ? err.message : String(err),
-      )
+      prismaCode === "P1010"
     ) {
       return NextResponse.json(
         {
           error:
-            "Database is not configured on the server. Set DATABASE_URL and DIRECT_URL in Vercel env, then redeploy.",
-          code: "DB_CONFIG",
+            "Cannot reach the database from the server. Check DATABASE_URL / DIRECT_URL on Vercel (Neon pooler) and redeploy.",
+          code: "DB_UNREACHABLE",
         },
         { status: 500 },
       );
