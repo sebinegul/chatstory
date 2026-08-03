@@ -29,7 +29,7 @@ export const RELATIONSHIPS: RelationshipMeta[] = [
     blurb: "Best friends or a close group chat turned keepsake",
     voice: "warm camaraderie, humor allowed, still elegant.",
     storyGuide:
-      "This is friendship, not romance. Write about loyalty, jokes, check-ins, shared plans, and ordinary care. Never frame them as lovers. No romantic yearning unless a sample clearly shows it.",
+      "This is FRIENDSHIP — not dating, not romance. Frame them as friends: loyalty, inside jokes, check-ins, shared plans, teasing, showing up. Never call them lovers, partners, or a couple. No romantic yearning, longing looks, or 'us' as a romance unless a sample clearly shows that. Prefer buddy warmth over soft-focus romance.",
   },
   {
     id: "family",

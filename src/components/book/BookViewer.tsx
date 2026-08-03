@@ -10,6 +10,9 @@ export function BookViewer({
   pages,
   templateId,
   isWatermarked,
+  pageIndex,
+  onPageIndexChange,
+  regeneratingTitle,
   onRename,
   onReorder,
   onRegenerate,
@@ -17,19 +20,33 @@ export function BookViewer({
   pages: BookPageModel[];
   templateId: TemplateId;
   isWatermarked: boolean;
+  pageIndex?: number;
+  onPageIndexChange?: (index: number) => void;
+  regeneratingTitle?: string | null;
   onRename?: (fromTitle: string, toTitle: string) => void;
   onReorder?: (order: string[]) => void;
   onRegenerate?: (title: string) => void;
 }) {
-  const [index, setIndex] = useState(0);
+  const [localIndex, setLocalIndex] = useState(0);
+  const index = pageIndex ?? localIndex;
+  const setIndex = (next: number | ((prev: number) => number)) => {
+    const value = typeof next === "function" ? next(index) : next;
+    if (onPageIndexChange) onPageIndexChange(value);
+    else setLocalIndex(value);
+  };
+
   const page = pages[index];
   const chapterTitles = useMemo(
     () =>
-      pages.filter((p) => p.type === "chapter").map((p) => (p.type === "chapter" ? p.title : "")),
+      pages
+        .filter((p) => p.type === "chapter")
+        .map((p) => (p.type === "chapter" ? p.title : "")),
     [pages],
   );
 
   if (!page) return null;
+
+  const showTweaks = Boolean(onRename && onReorder && onRegenerate);
 
   return (
     <div>
@@ -60,14 +77,17 @@ export function BookViewer({
         </button>
       </div>
 
-      {isWatermarked && onRename && onReorder && onRegenerate ? (
+      {showTweaks ? (
         <div className="mt-10 rounded-sm border border-[var(--rule)] p-5">
           <p className="font-[family-name:var(--font-dm)] text-xs uppercase tracking-[0.18em] text-[var(--gold-deep)]">
             Tweak chapters
           </p>
           <ul className="mt-4 space-y-3">
             {chapterTitles.map((title, i) => (
-              <li key={`${title}-${i}`} className="flex flex-wrap items-center gap-2">
+              <li
+                key={`${title}-${i}`}
+                className="flex flex-wrap items-center gap-2"
+              >
                 <span className="min-w-0 flex-1 font-[family-name:var(--font-eb-garamond)] text-lg">
                   {title}
                 </span>
@@ -76,7 +96,7 @@ export function BookViewer({
                   className="text-xs uppercase tracking-wider text-[var(--muted)]"
                   onClick={() => {
                     const next = prompt("Rename chapter", title);
-                    if (next && next !== title) onRename(title, next);
+                    if (next && next !== title) onRename?.(title, next);
                   }}
                 >
                   Rename
@@ -88,17 +108,18 @@ export function BookViewer({
                   onClick={() => {
                     const order = [...chapterTitles];
                     [order[i - 1], order[i]] = [order[i], order[i - 1]];
-                    onReorder(order);
+                    onReorder?.(order);
                   }}
                 >
                   Up
                 </button>
                 <button
                   type="button"
-                  className="text-xs uppercase tracking-wider text-[var(--muted)]"
-                  onClick={() => onRegenerate(title)}
+                  className="text-xs uppercase tracking-wider text-[var(--muted)] disabled:opacity-50"
+                  disabled={regeneratingTitle === title}
+                  onClick={() => onRegenerate?.(title)}
                 >
-                  Regenerate
+                  {regeneratingTitle === title ? "Rewriting…" : "Regenerate"}
                 </button>
               </li>
             ))}

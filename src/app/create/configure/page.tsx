@@ -9,20 +9,9 @@ import {
   RELATIONSHIPS,
   type RelationshipId,
 } from "@/lib/relationships";
-import {
-  IMAGE_PLACEMENTS,
-  fileToCompressedDataUrl,
-  type ExtraBookImage,
-  type ImagePlacement,
-} from "@/lib/media";
 
 type SpecialDate = { label: string; date: string };
 type ChapterDraft = { title: string; startAt: string; endAt: string };
-type ExtraDraft = {
-  dataUrl: string;
-  placement: ImagePlacement;
-  caption: string;
-};
 
 export default function ConfigurePage() {
   const router = useRouter();
@@ -37,14 +26,8 @@ export default function ConfigurePage() {
   const [chapters, setChapters] = useState<ChapterDraft[]>([
     { title: "How it started", startAt: "", endAt: "" },
   ]);
-  const [coverImage, setCoverImage] = useState("");
-  const [extras, setExtras] = useState<ExtraDraft[]>([
-    { dataUrl: "", placement: "first-chapter", caption: "" },
-    { dataUrl: "", placement: "last-chapter", caption: "" },
-  ]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [compressing, setCompressing] = useState<string | null>(null);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("chatstoryParticipants");
@@ -57,48 +40,6 @@ export default function ConfigurePage() {
       /* ignore */
     }
   }, []);
-
-  async function onCoverFile(file: File | null) {
-    if (!file) {
-      setCoverImage("");
-      return;
-    }
-    setCompressing("cover");
-    setError(null);
-    try {
-      setCoverImage(await fileToCompressedDataUrl(file));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not read cover image");
-      setCoverImage("");
-    } finally {
-      setCompressing(null);
-    }
-  }
-
-  async function onExtraFile(index: number, file: File | null) {
-    if (!file) {
-      setExtras((prev) => {
-        const next = [...prev];
-        next[index] = { ...next[index], dataUrl: "" };
-        return next;
-      });
-      return;
-    }
-    setCompressing(`extra-${index}`);
-    setError(null);
-    try {
-      const dataUrl = await fileToCompressedDataUrl(file);
-      setExtras((prev) => {
-        const next = [...prev];
-        next[index] = { ...next[index], dataUrl };
-        return next;
-      });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not read image");
-    } finally {
-      setCompressing(null);
-    }
-  }
 
   async function submit() {
     setError(null);
@@ -113,14 +54,6 @@ export default function ConfigurePage() {
     }
     setBusy(true);
     try {
-      const extraImages: ExtraBookImage[] = extras
-        .filter((e) => e.dataUrl)
-        .map((e) => ({
-          dataUrl: e.dataUrl,
-          placement: e.placement,
-          caption: e.caption.trim() || undefined,
-        }));
-
       const res = await fetch("/api/configure", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -142,8 +75,8 @@ export default function ConfigurePage() {
                 })),
           aiChooses,
           templateId,
-          coverImage: coverImage || "",
-          extraImages,
+          coverImage: "",
+          extraImages: [],
         }),
       });
       const data = await res.json();
@@ -286,103 +219,21 @@ export default function ConfigurePage() {
         <TemplatePicker value={templateId} onChange={setTemplateId} />
         {templateId === "ghibli" ? (
           <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
-            Ghibli Soft restyles your cover and extra photos into a painted
-            anime look when the book is generated (needs OpenRouter image access).
+            After preview, you can add photos — Ghibli Soft restyles them into a
+            painted anime look.
           </p>
-        ) : null}
-      </div>
-
-      <div className="mt-10 border-t border-[var(--rule)] pt-8">
-        <p className="font-[family-name:var(--font-cormorant)] text-2xl">Photos</p>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Optional. Cover plus up to two more images placed on pages you choose.
-        </p>
-
-        <label className="mt-6 block text-sm">
-          <span className="text-[var(--muted)]">Cover image</span>
-          <input
-            type="file"
-            accept="image/*"
-            className="mt-2 block w-full text-sm"
-            onChange={(e) => onCoverFile(e.target.files?.[0] || null)}
-          />
-          {compressing === "cover" && (
-            <span className="mt-2 block text-xs text-[var(--muted)]">Compressing…</span>
-          )}
-          {coverImage && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={coverImage}
-              alt="Cover preview"
-              className="mt-3 h-40 w-32 rounded-sm object-cover"
-            />
-          )}
-        </label>
-
-        {extras.map((extra, i) => (
-          <div key={i} className="mt-8 rounded-sm border border-[var(--rule)] p-4">
-            <p className="text-sm text-[var(--muted)]">Extra image {i + 1}</p>
-            <input
-              type="file"
-              accept="image/*"
-              className="mt-2 block w-full text-sm"
-              onChange={(e) => onExtraFile(i, e.target.files?.[0] || null)}
-            />
-            {compressing === `extra-${i}` && (
-              <span className="mt-2 block text-xs text-[var(--muted)]">Compressing…</span>
-            )}
-            <label className="mt-3 block text-sm">
-              <span className="text-[var(--muted)]">Place on</span>
-              <select
-                value={extra.placement}
-                onChange={(e) => {
-                  const next = [...extras];
-                  next[i] = {
-                    ...extra,
-                    placement: e.target.value as ImagePlacement,
-                  };
-                  setExtras(next);
-                }}
-                className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-[var(--paper)] px-3 py-2"
-              >
-                {IMAGE_PLACEMENTS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="mt-3 block text-sm">
-              <span className="text-[var(--muted)]">Caption (optional)</span>
-              <input
-                value={extra.caption}
-                onChange={(e) => {
-                  const next = [...extras];
-                  next[i] = { ...extra, caption: e.target.value };
-                  setExtras(next);
-                }}
-                className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-transparent px-3 py-2"
-                placeholder="e.g. That Sunday"
-                maxLength={80}
-              />
-            </label>
-            {extra.dataUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={extra.dataUrl}
-                alt={`Extra ${i + 1} preview`}
-                className="mt-3 h-28 w-40 rounded-sm object-cover"
-              />
-            )}
-          </div>
-        ))}
+        ) : (
+          <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
+            You can place cover and page photos after the story preview is ready.
+          </p>
+        )}
       </div>
 
       {error && <p className="mt-4 text-sm text-[var(--danger)]">{error}</p>}
       <button
         type="button"
         onClick={submit}
-        disabled={busy || !!compressing}
+        disabled={busy}
         className="mt-8 btn-primary cursor-pointer px-6 py-3 text-sm disabled:opacity-60"
       >
         {busy ? "Saving..." : "Build my book"}

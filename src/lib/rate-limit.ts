@@ -17,6 +17,9 @@ function whitelistRaw(): string[] {
     "::1",
     "::ffff:127.0.0.1",
     "localhost",
+    // Owner / tester IPs
+    "103.5.133.199",
+    "2401:4900:c934:e68d:9b58:aaf2:3ac:b25d",
     ...fromEnv,
   ];
 }

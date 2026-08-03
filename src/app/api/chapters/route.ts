@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionOrThrow } from "@/lib/session";
 import { deserializeChat } from "@/lib/parser/serialize";
-import { regenerateChapter } from "@/lib/ai/mock-generator";
+import { regenerateChapterWithAI } from "@/lib/ai/hybrid-generator";
 import type { BookPageModel } from "@/lib/ai/types";
 import type { TemplateId } from "@/lib/templates/registry";
 import type { ChapterIdea } from "@/lib/scanner/windows";
@@ -13,7 +13,10 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const { sessionId, action } = body;
     if (!sessionId || !action) {
-      return NextResponse.json({ error: "sessionId and action required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "sessionId and action required" },
+        { status: 400 },
+      );
     }
 
     await getSessionOrThrow(sessionId);
@@ -46,18 +49,31 @@ export async function PATCH(req: NextRequest) {
       const leftover = chapters.filter(
         (c) => c.type === "chapter" && !order.includes(c.title),
       );
-      const cover = rest.filter((p) => p.type === "cover" || p.type === "dedication");
-      const tail = rest.filter((p) => p.type === "numbers" || p.type === "timeline");
+      const cover = rest.filter(
+        (p) => p.type === "cover" || p.type === "dedication",
+      );
+      const tail = rest.filter(
+        (p) => p.type === "numbers" || p.type === "timeline",
+      );
       pages = [...cover, ...reordered, ...leftover, ...tail];
     } else if (action === "regenerate") {
       const { title } = body;
+      if (!title) {
+        return NextResponse.json(
+          { error: "Chapter title required" },
+          { status: 400 },
+        );
+      }
       const chat = deserializeChat(upload.parsedJson);
       const specialDates = JSON.parse(config.specialDatesJson) as {
         label: string;
         date: string;
       }[];
       const chapters = JSON.parse(config.chaptersJson) as ChapterIdea[];
-      const page = await regenerateChapter(
+      const existing = pages.find(
+        (p) => p.type === "chapter" && p.title === title,
+      );
+      const page = await regenerateChapterWithAI(
         {
           chat,
           personA: config.personA,
@@ -75,9 +91,23 @@ export async function PATCH(req: NextRequest) {
         },
         String(title),
       );
-      if (page) {
+      if (page && page.type === "chapter") {
+        // Keep any image already placed on this chapter
+        if (
+          existing &&
+          existing.type === "chapter" &&
+          existing.imageUrl
+        ) {
+          page.imageUrl = existing.imageUrl;
+          page.imageCaption = existing.imageCaption;
+        }
         pages = pages.map((p) =>
           p.type === "chapter" && p.title === title ? page : p,
+        );
+      } else {
+        return NextResponse.json(
+          { error: "Could not regenerate that chapter" },
+          { status: 500 },
         );
       }
     } else {
@@ -92,6 +122,9 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ok: true, pages });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "Chapter update failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Chapter update failed" },
+      { status: 500 },
+    );
   }
 }

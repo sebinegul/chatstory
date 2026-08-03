@@ -24,15 +24,15 @@ const FEATURES = [
     span: "",
   },
   {
-    title: "Photos on pages",
-    body: "Cover plus two images placed where you choose. Ghibli restyles them.",
+    title: "Photos on preview",
+    body: "After the story exists, place cover and page photos. Ghibli restyles them.",
     span: "md:col-span-2",
   },
 ];
 
 const STEPS = [
   { n: "01", t: "Upload the .txt", d: "Export chat without media. We parse dates and words." },
-  { n: "02", t: "Shape the book", d: "Names, relationship, chapters, template, photos." },
+  { n: "02", t: "Shape the book", d: "Names, relationship, chapters, and template." },
   { n: "03", t: "Preview & unlock", d: "Read the watermarked book. Unlock PDF for Rs.49." },
 ];
 
@@ -183,8 +183,8 @@ export default function HomePage() {
               Four looks. Pick one for your book.
             </h2>
             <p className="mt-3 max-w-2xl text-[var(--ink-soft)]">
-              Each template is a full layout — not just a color swap. Ghibli Soft
-              also restyles your photos into painted frames.
+              Each template is a full layout — not just a color swap. After preview,
+              Ghibli Soft restyles photos you add into painted frames.
             </p>
           </FadeUp>
           <Stagger className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -26,7 +26,9 @@ import {
   languagePromptBlock,
   type DetectedLanguage,
 } from "./detect-language";
+import { humanizeNarration } from "./humanize";
 import type { BookPageModel, GenerateBookInput, GeneratedBook } from "./types";
+import type { RelationshipId } from "@/lib/relationships";
 
 function noEmDash(text: string): string {
   return text.replace(/\u2014/g, ",").replace(/ -- /g, ", ");
@@ -105,7 +107,8 @@ Voice: ${voice}
 RELATIONSHIP (must follow): ${guide}
 ${languagePromptBlock(lang)}
 
-Write 4-6 sentences per chapter. Specific, clear, emotionally true to the samples.
+Write like a thoughtful human friend, not a novelist. 3–5 short sentences.
+Plain words. Specific, emotionally true to the samples.
 Each chapter must feel different because the samples are different.
 
 Hard rules:
@@ -113,10 +116,11 @@ Hard rules:
 - Never invent quotes, dates, events, or feelings the samples do not support
 - Ground at least two sentences in concrete sample details (phrase, time, joke, habit, silence)
 - Do not repeat the upcoming quotes verbatim
-- When samples are thin, write less — 3 careful sentences
-- Banned phrases: journey, tapestry, delve, testament, cherished memories, in today's world, forever etched, whirlwind, soulmate (unless they said it), "ordinary care", "forwards, the late replies"
+- When samples are thin, write less — 2–3 careful sentences
+- Banned phrases: journey, tapestry, delve, testament, cherished, whirlwind, soulmate (unless they said it), "ordinary care", "something settles", "the soft voice", forever etched
 - Do NOT force a celebrate-word theme
 - Prefer warmth over drama. Prefer specificity over adjectives
+- Match the relationship type exactly (friends stay friends; couples stay partners)
 
 Return JSON only: {"chapters":[{"title":"...","narration":"..."}]}
 Use each chapter title EXACTLY as given. Return one object per chapter, in the same order.
@@ -230,10 +234,16 @@ export async function generateBookWithModels(
     ];
 
     const timeline: { at: string; label: string }[] = [];
+    const humanizeOpts = {
+      relationship: relationship as RelationshipId,
+      lang,
+      personA: input.personA,
+      personB: input.personB,
+    };
 
     for (let i = 0; i < prepared.length; i++) {
       const p = prepared[i];
-      const narration =
+      let narration =
         narrationsByIndex[i] ||
         narrationByTitle.get(p.chapter.title) ||
         narrationForChapter({
@@ -245,6 +255,7 @@ export async function generateBookWithModels(
           messageCount: p.windowMessages.length,
           chapterIndex: i,
         });
+      narration = await humanizeNarration(narration, humanizeOpts);
 
       pages.push({
         type: "chapter",
@@ -300,6 +311,7 @@ export async function generateBookWithModels(
           chapterIndex: pages.filter((p) => p.type === "chapter").length,
         });
       }
+      narration = await humanizeNarration(narration, humanizeOpts);
       pages.push({
         type: "chapter",
         title: w.label,
@@ -332,10 +344,91 @@ export async function generateBookWithModels(
     pages.push({ type: "timeline", events: timeline });
 
     console.info(`[chatstory] language=${lang.code} (${lang.label}) relationship=${relationship}`);
-    void relationship;
     return { title, titleOptions, dedication, pages };
   } catch (err) {
     console.error("OpenRouter generation failed, using mock", err);
     return mockGenerateBook(input);
   }
+}
+
+/** Regenerate one chapter with the story model + humanize pass. */
+export async function regenerateChapterWithAI(
+  input: GenerateBookInput,
+  chapterTitle: string,
+): Promise<BookPageModel | null> {
+  const relationship = input.relationship || "couple";
+  const lang = detectChatLanguage(input.chat);
+  const chapterIdeas = resolveChapters(input);
+  const windows = buildWindows(input.chat, input.specialDates);
+
+  const chapter =
+    chapterIdeas.find((c) => c.title === chapterTitle) ||
+    windows
+      .filter((w) => w.label === chapterTitle)
+      .map((w) => ({
+        title: w.label,
+        startAt: w.startAt,
+        endAt: w.endAt,
+      }))[0];
+
+  let windowMessages = chapter
+    ? messagesInRange(input.chat.messages, chapter.startAt, chapter.endAt)
+    : [];
+  if (windowMessages.length === 0) {
+    const match = windows.find((w) => w.label === chapterTitle);
+    if (match) windowMessages = match.messages;
+  }
+
+  const quotes = pickQuotes(windowMessages, 3);
+  const sample = windowMessages
+    .slice(0, 20)
+    .map((m) => `${m.author}: ${m.body}`);
+
+  let narration = "";
+  if (hasOpenRouterKey()) {
+    try {
+      const story = await storyNarrations(
+        input,
+        [{ title: chapterTitle, quotes: quotes.map((q) => q.text), sample }],
+        lang,
+      );
+      narration = noEmDash(String(story.chapters?.[0]?.narration || ""));
+    } catch (err) {
+      console.warn("regenerate story model failed", err);
+    }
+  }
+
+  if (!narration) {
+    narration = narrationForChapter({
+      personA: input.personA,
+      personB: input.personB,
+      title: chapterTitle,
+      relationship,
+      quotes,
+      messageCount: windowMessages.length,
+      chapterIndex: 0,
+    });
+  }
+
+  if (hasOpenRouterKey()) {
+    narration = await humanizeNarration(narration, {
+      relationship,
+      lang,
+      personA: input.personA,
+      personB: input.personB,
+    });
+  }
+
+  return {
+    type: "chapter",
+    title: chapterTitle,
+    narration,
+    quotes,
+    milestone:
+      windowMessages.length > 0
+        ? `${windowMessages.length} messages in this chapter`
+        : undefined,
+    startAt: chapter?.startAt?.toISOString(),
+    endAt: chapter?.endAt?.toISOString(),
+  };
 }

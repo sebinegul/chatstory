@@ -10,8 +10,6 @@ import type { ChapterIdea } from "@/lib/scanner/windows";
 import type { RelationshipId } from "@/lib/relationships";
 import type { ExtraBookImage } from "@/lib/media";
 import { applyBookMedia } from "@/lib/ai/apply-media";
-import { isGhibliTemplate } from "@/lib/templates/registry";
-import { stylizeBookImagesGhibli } from "@/lib/ai/ghibli-style";
 
 export const maxDuration = 120;
 
@@ -65,26 +63,15 @@ export async function POST(req: NextRequest) {
     const chapters = JSON.parse(config.chaptersJson) as ChapterIdea[];
     const aiChooses = chapters.length === 0;
 
+    // Photos are added on the preview page (after the story exists).
+    // Re-apply any already-saved media if the user regenerates the book.
     let media: ExtraBookImage[] = [];
     try {
       media = JSON.parse(config.mediaJson || "[]") as ExtraBookImage[];
     } catch {
       media = [];
     }
-
-    let coverImage = config.coverImage || undefined;
-    if (isGhibliTemplate(config.templateId)) {
-      try {
-        const styled = await stylizeBookImagesGhibli({
-          coverImage,
-          extraImages: media,
-        });
-        coverImage = styled.coverImage;
-        media = (styled.extraImages || []) as ExtraBookImage[];
-      } catch (err) {
-        console.warn("Ghibli stylize skipped", err);
-      }
-    }
+    const coverImage = config.coverImage || undefined;
 
     const rawBook = await bookGenerator.generateBook({
       chat,
