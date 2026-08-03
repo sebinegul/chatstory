@@ -38,7 +38,7 @@ export function ProgressStages({ active }: { active: boolean }) {
           >
             <span
               className={`h-2 w-2 rounded-full ${
-                current ? "bg-[var(--gold)]" : "bg-[var(--rule)]"
+                current ? "bg-[var(--accent)]" : "bg-[var(--rule)]"
               }`}
             />
             {stage}

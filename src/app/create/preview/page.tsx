@@ -205,7 +205,7 @@ export default function PreviewPage() {
           />
 
           <div className="mt-10 rounded-sm border border-[var(--rule)] p-5">
-            <p className="font-[family-name:var(--font-dm)] text-xs uppercase tracking-[0.18em] text-[var(--gold-deep)]">
+            <p className="font-[family-name:var(--font-dm)] text-xs uppercase tracking-[0.18em] text-[var(--accent)]">
               Photos on this page
             </p>
             <p className="mt-2 text-sm text-[var(--muted)]">
@@ -225,7 +225,7 @@ export default function PreviewPage() {
                 onChange={(e) => setCaption(e.target.value)}
                 maxLength={80}
                 disabled={mediaBusy}
-                className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-transparent px-3 py-2"
+                className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-[var(--surface)] px-3 py-2"
                 placeholder={
                   current?.type === "cover" ? "Cover photo" : "e.g. That Sunday"
                 }

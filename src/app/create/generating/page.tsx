@@ -47,7 +47,7 @@ export default function GeneratingPage() {
           <p className="text-sm text-[var(--danger)]">{error}</p>
           <button
             type="button"
-            className="mt-4 text-sm text-[var(--gold-deep)]"
+            className="mt-4 text-sm text-[var(--accent)]"
             onClick={() => router.push("/create/configure")}
           >
             Go back

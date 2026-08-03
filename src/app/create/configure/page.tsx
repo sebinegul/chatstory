@@ -97,7 +97,7 @@ export default function ConfigurePage() {
           <input
             value={personA}
             onChange={(e) => setPersonA(e.target.value)}
-            className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-transparent px-3 py-2"
+            className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-[var(--surface)] px-3 py-2"
           />
         </label>
         <label className="block text-sm">
@@ -105,7 +105,7 @@ export default function ConfigurePage() {
           <input
             value={personB}
             onChange={(e) => setPersonB(e.target.value)}
-            className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-transparent px-3 py-2"
+            className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-[var(--surface)] px-3 py-2"
           />
         </label>
       </div>
@@ -115,7 +115,7 @@ export default function ConfigurePage() {
         <select
           value={relationship}
           onChange={(e) => setRelationship(e.target.value as RelationshipId)}
-          className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-[var(--paper)] px-3 py-2"
+          className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-[var(--surface)] px-3 py-2"
         >
           {RELATIONSHIPS.map((r) => (
             <option key={r.id} value={r.id}>
@@ -141,7 +141,7 @@ export default function ConfigurePage() {
                   next[i] = { ...d, label: e.target.value };
                   setSpecialDates(next);
                 }}
-                className="rounded-sm border border-[var(--rule)] bg-transparent px-3 py-2 text-sm"
+                className="rounded-sm border border-[var(--rule)] bg-[var(--surface)] px-3 py-2 text-sm"
               />
               <input
                 type="date"
@@ -151,14 +151,14 @@ export default function ConfigurePage() {
                   next[i] = { ...d, date: e.target.value };
                   setSpecialDates(next);
                 }}
-                className="rounded-sm border border-[var(--rule)] bg-transparent px-3 py-2 text-sm"
+                className="rounded-sm border border-[var(--rule)] bg-[var(--surface)] px-3 py-2 text-sm"
               />
             </div>
           ))}
           {specialDates.length < 10 && (
             <button
               type="button"
-              className="text-sm text-[var(--gold-deep)]"
+              className="text-sm text-[var(--accent)]"
               onClick={() =>
                 setSpecialDates([...specialDates, { label: "", date: "" }])
               }
@@ -175,7 +175,7 @@ export default function ConfigurePage() {
             type="checkbox"
             checked={aiChooses}
             onChange={(e) => setAiChooses(e.target.checked)}
-            className="accent-[var(--gold-deep)]"
+            className="accent-[var(--accent)]"
           />
           AI chooses chapters for me
         </label>
@@ -191,13 +191,13 @@ export default function ConfigurePage() {
                   next[i] = { ...c, title: e.target.value };
                   setChapters(next);
                 }}
-                className="w-full rounded-sm border border-[var(--rule)] bg-transparent px-3 py-2 text-sm"
+                className="w-full rounded-sm border border-[var(--rule)] bg-[var(--surface)] px-3 py-2 text-sm"
               />
             ))}
             {chapters.length < 15 && (
               <button
                 type="button"
-                className="text-sm text-[var(--gold-deep)]"
+                className="text-sm text-[var(--accent)]"
                 onClick={() =>
                   setChapters([
                     ...chapters,

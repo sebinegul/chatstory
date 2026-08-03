@@ -79,7 +79,7 @@ export function BookViewer({
 
       {showTweaks ? (
         <div className="mt-10 rounded-sm border border-[var(--rule)] p-5">
-          <p className="font-[family-name:var(--font-dm)] text-xs uppercase tracking-[0.18em] text-[var(--gold-deep)]">
+          <p className="font-[family-name:var(--font-dm)] text-xs uppercase tracking-[0.18em] text-[var(--accent)]">
             Tweak chapters
           </p>
           <ul className="mt-4 space-y-3">

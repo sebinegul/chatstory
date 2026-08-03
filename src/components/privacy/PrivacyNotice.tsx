@@ -13,12 +13,15 @@ export function PrivacyNotice({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-1 accent-[var(--gold-deep)]"
+        className="mt-1 accent-[var(--accent)]"
       />
       <span>
         I understand my chat is processed to build this book, never used for
         training, and deleted after download or within 48 hours.{" "}
-        <Link href="/privacy" className="underline decoration-[var(--gold)] underline-offset-4">
+        <Link
+          href="/privacy"
+          className="underline decoration-[var(--accent)] underline-offset-4"
+        >
           Read the privacy policy
         </Link>
         .

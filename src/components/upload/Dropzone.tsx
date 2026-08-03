@@ -33,10 +33,10 @@ export function Dropzone({
         setDragging(false);
         take(e.dataTransfer.files?.[0]);
       }}
-      className={`flex cursor-pointer flex-col items-center justify-center rounded-[1.25rem] border border-dashed px-6 py-14 text-center transition ${
+      className={`flex min-h-[11rem] cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-14 text-center transition-[border-color,background-color] duration-160 ${
         dragging
-          ? "border-[#2dd4bf] bg-[rgba(45,212,191,0.08)]"
-          : "border-[var(--rule)] bg-white/[0.03]"
+          ? "border-[var(--accent)] bg-[var(--accent-soft)]"
+          : "border-[var(--rule)] bg-[var(--surface)]"
       } ${disabled ? "opacity-60" : ""}`}
     >
       <input

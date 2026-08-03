@@ -16,11 +16,9 @@ export function MockRazorpayModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center">
-      <div className="glass-panel-strong w-full max-w-md rounded-[1.5rem] p-6">
-        <p className="font-[family-name:var(--font-space)] text-xs uppercase tracking-[0.2em] text-[#2dd4bf]">
-          Mock Razorpay
-        </p>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(28,25,23,0.45)] p-4 sm:items-center">
+      <div className="surface-panel w-full max-w-md p-6">
+        <p className="text-sm font-medium text-[var(--accent)]">Mock Razorpay</p>
         <h2 className="mt-2 font-[family-name:var(--font-space)] text-2xl font-semibold">
           Unlock your book
         </h2>

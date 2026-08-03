@@ -85,10 +85,10 @@ export function TemplatePicker({
             key={t.id}
             type="button"
             onClick={() => onChange(t.id)}
-            className={`cursor-pointer rounded-[1.25rem] border p-3 text-left transition ${
+            className={`cursor-pointer rounded-2xl border p-3 text-left transition-[border-color,background-color,box-shadow] duration-160 ${
               selected
-                ? "border-[#2dd4bf]/60 bg-[rgba(45,212,191,0.08)] shadow-[0_0_0_1px_rgba(45,212,191,0.35)]"
-                : "border-[var(--rule)] bg-transparent hover:border-white/20"
+                ? "border-[var(--accent)] bg-[var(--accent-soft)] ring-2 ring-[var(--accent)]"
+                : "border-[var(--rule)] bg-[var(--surface)] hover:border-[#d6d3d1]"
             }`}
           >
             <TemplateMiniPreview id={t.id} />
@@ -97,7 +97,7 @@ export function TemplatePicker({
             </p>
             <p className="mt-1 text-xs text-[var(--muted)]">{t.blurb}</p>
             {selected ? (
-              <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-[#2dd4bf]">
+              <p className="mt-2 text-xs font-medium text-[var(--accent)]">
                 Selected for PDF
               </p>
             ) : null}

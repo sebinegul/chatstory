@@ -24,13 +24,13 @@ export function StatsCard({
       value: formatDateDMY(stats.lastAt),
     },
     { label: "Longest silence", value: `${stats.longestSilenceDays} days` },
-    { label: "Most active day", value: stats.mostActiveDay || "—" },
+    { label: "Most active day", value: stats.mostActiveDay || "-" },
   ];
 
   return (
-    <div className="overflow-hidden rounded-[1.25rem] border border-[var(--border-glass)] bg-white/[0.04] px-6 py-8">
-      <p className="font-[family-name:var(--font-space)] text-xs uppercase tracking-[0.2em] text-[#2dd4bf]">
-        Our WhatsApp in numbers
+    <div className="overflow-hidden rounded-2xl border border-[var(--rule)] bg-[var(--surface)] px-6 py-8 shadow-[var(--shadow)]">
+      <p className="font-[family-name:var(--font-space)] text-sm font-medium text-[var(--accent)]">
+        Your chat in numbers
       </p>
       <div className="mt-6 grid gap-6 sm:grid-cols-2">
         {items.map((item) => (

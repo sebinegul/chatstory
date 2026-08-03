@@ -33,9 +33,6 @@ body {
   transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
     background-color 160ms ease;
 }
-.btn-primary:hover {
-  background: #881337;
-}
 .btn-primary:active {
   transform: scale(0.97);
 }
@@ -55,12 +52,22 @@ body {
   transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
     border-color 160ms ease, background-color 160ms ease;
 }
-.btn-ghost:hover {
-  border-color: #d6d3d1;
-  background: var(--paper-deep);
-}
 .btn-ghost:active {
   transform: scale(0.97);
+}
+.btn-ghost:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    background: #881337;
+  }
+  .btn-ghost:hover {
+    border-color: #d6d3d1;
+    background: var(--paper-deep);
+  }
 }
 
 .surface-panel {
@@ -70,8 +77,9 @@ body {
   box-shadow: var(--shadow);
 }
 
+/* Compat aliases until call sites finish migrating */
 .ambient-glow {
-  background: var(--paper);
+  display: none;
 }
 
 .glass-panel,

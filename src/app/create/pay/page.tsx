@@ -61,7 +61,7 @@ export default function PayPage() {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-transparent px-3 py-2"
+          className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-[var(--surface)] px-3 py-2"
           placeholder="backup copy later"
         />
       </label>
