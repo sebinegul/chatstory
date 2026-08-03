@@ -129,7 +129,39 @@ export async function POST(req: NextRequest) {
       participants: chat.participants,
     });
   } catch (err) {
-    console.error(err);
+    console.error("upload failed", err);
+    const prismaCode =
+      err && typeof err === "object" && "code" in err
+        ? String((err as { code: unknown }).code)
+        : "";
+    if (
+      prismaCode === "P1001" ||
+      prismaCode === "P1000" ||
+      prismaCode === "P1010" ||
+      /DATABASE_URL|Environment variable not found/i.test(
+        err instanceof Error ? err.message : String(err),
+      )
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Database is not configured on the server. Set DATABASE_URL and DIRECT_URL in Vercel env, then redeploy.",
+          code: "DB_CONFIG",
+        },
+        { status: 500 },
+      );
+    }
+    if (prismaCode.startsWith("P")) {
+      return NextResponse.json(
+        {
+          error:
+            "Database error while saving your upload. Check that the chatstory schema exists on Neon.",
+          code: "DB_ERROR",
+          prismaCode,
+        },
+        { status: 500 },
+      );
+    }
     return NextResponse.json(
       { error: "Upload failed on the server. Try again in a moment.", code: "SERVER" },
       { status: 500 },
