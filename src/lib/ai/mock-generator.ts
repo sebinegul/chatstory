@@ -6,6 +6,7 @@ import {
 } from "@/lib/scanner/windows";
 import type { ParsedMessage } from "@/lib/parser/types";
 import type { RelationshipId } from "@/lib/relationships";
+import { formatDayKeyDMY } from "@/lib/format-date";
 import type {
   BookPageModel,
   GenerateBookInput,
@@ -18,10 +19,9 @@ function noEmDash(text: string): string {
 }
 
 function dayKey(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return formatDayKeyDMY(
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+  );
 }
 
 export function messagesInRange(
@@ -37,15 +37,40 @@ export function messagesInRange(
   });
 }
 
+function isBadQuote(body: string): boolean {
+  const t = body.trim();
+  if (t.length < 12) return true;
+  if (t.length > 280) return true;
+  if (/https?:\/\//i.test(t)) return true;
+  if (/maps\.google|goo\.gl\/maps|maps\.app\.goo/i.test(t)) return true;
+  if (/^location:\s*/i.test(t)) return true;
+  if (/<media omitted>|image omitted|video omitted|audio omitted|sticker omitted|document omitted|gif omitted/i.test(t))
+    return true;
+  if (/^[\d\s.,+\-°]+$/.test(t)) return true;
+  // Mostly coordinates / numbers
+  const letters = (t.match(/\p{L}/gu) || []).length;
+  if (letters < 8) return true;
+  return false;
+}
+
+function quoteScore(body: string): number {
+  let score = Math.min(body.length, 160);
+  if (/[❤️😍🥰😊😂😭]|love|miss|sorry|thank|happy|proud|care/i.test(body)) {
+    score += 40;
+  }
+  if (/\?$/.test(body.trim())) score += 10;
+  return score;
+}
+
 export function pickQuotes(messages: ParsedMessage[], limit = 3): QuoteModel[] {
   const usable = messages
-    .filter((m) => !m.deleted && m.body.trim().length > 8)
-    .sort((a, b) => b.body.length - a.body.length);
+    .filter((m) => !m.deleted && !isBadQuote(m.body))
+    .sort((a, b) => quoteScore(b.body) - quoteScore(a.body));
 
   const picked: QuoteModel[] = [];
   const seen = new Set<string>();
   for (const m of usable) {
-    const key = m.body.trim();
+    const key = m.body.trim().toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     picked.push({
@@ -65,33 +90,45 @@ function narrationFor(
   quoteCount: number,
   thin: boolean,
   relationship: RelationshipId,
+  keyword?: string,
+  firstQuote?: string,
 ): string {
+  const detail = firstQuote
+    ? `One line stays close: "${firstQuote.slice(0, 90)}${firstQuote.length > 90 ? "…" : ""}".`
+    : "";
+  const names = `${personA} and ${personB}`;
+
   if (relationship === "tribute") {
     return noEmDash(
       thin
-        ? `${title} holds only a few remaining lines. We keep them as they were written.`
-        : `${title} holds a few of their words. We keep them as they were written. Softly. Without adding what is not there.`,
+        ? `${title}. Only a handful of lines remain from this stretch. We leave them untouched. ${detail || "What they typed is enough."} The page holds what the chat still knows.`
+        : `${title}. Their words are still here, ordinary and exact. ${detail} We do not invent what the chat does not show. Reading them now feels like standing in a room they left the light on in.`,
     );
   }
   if (relationship === "friends") {
     return noEmDash(
       thin
-        ? `Around ${title.toLowerCase()}, the chat thins out. ${personA} and ${personB} leave a small trail of check-ins.`
-        : `${title} is a stretch of their back-and-forth. The jokes, the check-ins, the ordinary care. The lines below are theirs.`,
+        ? `${title}. The chat thins out for a while. ${names} leave small check-ins, half jokes, and the kind of care that never needs a speech. ${detail || "Even the quiet days belong."}`
+        : `${title}. This is the ordinary care between ${names}: the forwards, the late replies, the "you free?" that meant more than it looked. ${detail || "Friendship lives in the unremarkable messages."} The quotes below are the proof.`,
     );
   }
   if (thin) {
     return noEmDash(
-      `Around ${title.toLowerCase()}, the chat grows quiet. ${personA} and ${personB} leave only a few lines. The silence is part of the story too.`,
+      `${title}. Around here the chat grows quiet. ${names} leave only a few lines, then space. ${detail || "Silence can be part of loving someone too."} We keep the thin places as carefully as the loud ones.`,
+    );
+  }
+  if (keyword && firstQuote?.toLowerCase().includes(keyword.toLowerCase())) {
+    return noEmDash(
+      `${title}. You can hear "${keyword}" in the way they write to each other, not as decoration, as habit. ${detail} Between the late messages and the small replies, something settles. The lines that follow are theirs, kept exactly.`,
     );
   }
   if (quoteCount === 0) {
     return noEmDash(
-      `${personA} and ${personB} keep writing through ${title.toLowerCase()}. The messages are ordinary. That is what makes them tender.`,
+      `${title}. ${names} keep writing through the ordinary days: plans, check-ins, nothing theatrical. That is what makes it tender. A book like this is built from the messages nobody thought to save.`,
     );
   }
   return noEmDash(
-    `${title} holds a stretch of their conversation. The words below are theirs, kept exactly as they were typed. Between the lines, something settles into place.`,
+    `${title}. Between the late messages and the small replies, something settles between ${names}. ${detail || "A joke lands. A worry softens. Someone says goodnight twice."} The page makes room for their words next, without polishing them.`,
   );
 }
 
@@ -112,20 +149,24 @@ export async function generateBook(
   const stats = computeStats(chat, keyword || undefined);
 
   const titleOptions = [
-    `${personA} & ${personB}`,
+    keyword
+      ? `${personA} & ${personB}: ${keyword}`
+      : `${personA} & ${personB}`,
     relationship === "tribute" ? `In Memory` : `A Story in Messages`,
-    `Our ChatStory`,
+    keyword ? `Built around “${keyword}”` : `Our ChatStory`,
   ].map(noEmDash);
 
   const title = titleOptions[0];
   const dedication = noEmDash(
     relationship === "tribute"
       ? `For ${personA} and ${personB}, and the messages that remain.`
-      : `For ${personA} and ${personB}, and every ordinary night that became something more.`,
+      : keyword
+        ? `For ${personA} and ${personB}, and every time you said ${keyword}.`
+        : `For ${personA} and ${personB}, and every ordinary night that became something more.`,
   );
 
   const pages: BookPageModel[] = [
-    { type: "cover", title, subtitle: "From a WhatsApp chat" },
+    { type: "cover", title },
     { type: "dedication", text: dedication },
   ];
 
@@ -155,6 +196,8 @@ export async function generateBook(
         quotes.length,
         thin,
         relationship,
+        keyword,
+        quotes[0]?.text,
       ),
       quotes,
       milestone:
@@ -185,6 +228,8 @@ export async function generateBook(
         quotes.length,
         w.messages.length < 5,
         relationship,
+        keyword,
+        quotes[0]?.text,
       ),
       quotes,
       milestone: `${w.messages.length} messages around this day`,

@@ -1,5 +1,7 @@
 "use client";
 
+import { formatDateDMY } from "@/lib/format-date";
+
 export function StatsCard({
   stats,
 }: {
@@ -14,14 +16,14 @@ export function StatsCard({
   };
 }) {
   const items = [
-    { label: "Messages", value: stats.totalMessages.toLocaleString() },
+    { label: "Messages", value: stats.totalMessages.toLocaleString("en-IN") },
     {
       label: "First message",
-      value: new Date(stats.firstAt).toLocaleDateString(),
+      value: formatDateDMY(stats.firstAt),
     },
     {
       label: "Last message",
-      value: new Date(stats.lastAt).toLocaleDateString(),
+      value: formatDateDMY(stats.lastAt),
     },
     { label: "Longest silence", value: `${stats.longestSilenceDays} days` },
     { label: "Most active day", value: stats.mostActiveDay || "—" },
@@ -29,8 +31,8 @@ export function StatsCard({
 
   if (stats.keyword) {
     items.push({
-      label: `"${stats.keyword}" said`,
-      value: stats.keywordCount.toLocaleString(),
+      label: `Times you said “${stats.keyword}”`,
+      value: stats.keywordCount.toLocaleString("en-IN"),
     });
   }
 

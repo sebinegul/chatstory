@@ -1,6 +1,7 @@
 import type { ParsedChat } from "@/lib/parser/types";
 import type { ChapterIdea } from "@/lib/scanner/windows";
 import type { TemplateId } from "@/lib/templates/registry";
+import type { ExtraBookImage } from "@/lib/media";
 
 export interface QuoteModel {
   text: string;
@@ -9,8 +10,18 @@ export interface QuoteModel {
 }
 
 export type BookPageModel =
-  | { type: "cover"; title: string; subtitle?: string }
-  | { type: "dedication"; text: string }
+  | {
+      type: "cover";
+      title: string;
+      subtitle?: string;
+      imageUrl?: string;
+    }
+  | {
+      type: "dedication";
+      text: string;
+      imageUrl?: string;
+      imageCaption?: string;
+    }
   | {
       type: "chapter";
       title: string;
@@ -19,6 +30,8 @@ export type BookPageModel =
       milestone?: string;
       startAt?: string;
       endAt?: string;
+      imageUrl?: string;
+      imageCaption?: string;
     }
   | {
       type: "numbers";
@@ -28,10 +41,14 @@ export type BookPageModel =
       mostActiveDay: string;
       keyword: string;
       keywordCount: number;
+      imageUrl?: string;
+      imageCaption?: string;
     }
   | {
       type: "timeline";
       events: { at: string; label: string }[];
+      imageUrl?: string;
+      imageCaption?: string;
     };
 
 export interface GeneratedBook {
@@ -51,4 +68,6 @@ export interface GenerateBookInput {
   aiChooses: boolean;
   templateId: TemplateId;
   keyword: string;
+  coverImage?: string;
+  extraImages?: ExtraBookImage[];
 }

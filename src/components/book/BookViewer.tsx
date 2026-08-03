@@ -67,7 +67,7 @@ export function BookViewer({
           </p>
           <ul className="mt-4 space-y-3">
             {chapterTitles.map((title, i) => (
-              <li key={title} className="flex flex-wrap items-center gap-2">
+              <li key={`${title}-${i}`} className="flex flex-wrap items-center gap-2">
                 <span className="min-w-0 flex-1 font-[family-name:var(--font-eb-garamond)] text-lg">
                   {title}
                 </span>

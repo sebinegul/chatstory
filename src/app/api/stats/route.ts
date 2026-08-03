@@ -7,7 +7,7 @@ import { computeStats } from "@/lib/scanner/stats";
 export async function GET(req: NextRequest) {
   try {
     const sessionId = req.nextUrl.searchParams.get("sessionId");
-    const keyword = req.nextUrl.searchParams.get("keyword") || "";
+    const keywordParam = req.nextUrl.searchParams.get("keyword");
     if (!sessionId) {
       return NextResponse.json({ error: "sessionId required" }, { status: 400 });
     }
@@ -19,6 +19,12 @@ export async function GET(req: NextRequest) {
     }
 
     const chat = deserializeChat(upload.parsedJson);
+    // Empty string means "auto-detect top keyword"
+    const keyword =
+      keywordParam === null || keywordParam === undefined
+        ? undefined
+        : keywordParam;
+
     const stats = computeStats(chat, keyword || undefined);
 
     return NextResponse.json({
@@ -29,7 +35,12 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Stats failed";
-    const status = message.includes("not found") || message.includes("expired") || message.includes("deleted") ? 404 : 500;
+    const status =
+      message.includes("not found") ||
+      message.includes("expired") ||
+      message.includes("deleted")
+        ? 404
+        : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

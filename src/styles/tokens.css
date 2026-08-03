@@ -1,11 +1,14 @@
 :root {
-  --paper: #f7f3ec;
-  --paper-deep: #efe8dc;
+  --paper: #fffbeb;
+  --paper-deep: #f5ecd8;
   --ink: #1c1917;
   --ink-soft: #44403c;
   --muted: #78716c;
-  --gold: #b08d57;
-  --gold-deep: #8a6b3d;
-  --danger: #9f1239;
-  --rule: color-mix(in srgb, var(--gold) 45%, transparent);
+  --gold: #c4a15a;
+  --gold-deep: #92400e;
+  --accent: #d97706;
+  --danger: #dc2626;
+  --rule: rgba(146, 64, 14, 0.28);
+  --wash: #faf6eb;
+  --shadow: 0 24px 60px rgba(28, 25, 23, 0.08);
 }

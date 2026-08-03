@@ -6,7 +6,7 @@ const STAGES = [
   "Reading your chat...",
   "Finding your story...",
   "Writing chapters...",
-  "Designing pages...",
+  "Painting photos & pages...",
 ];
 
 export function ProgressStages({ active }: { active: boolean }) {

@@ -1,10 +1,13 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas   = ["chatstory"]
 }
 
 model Session {
@@ -19,6 +22,8 @@ model Session {
   book               Book?
   order              Order?
   previewCount       Int         @default(0)
+
+  @@schema("chatstory")
 }
 
 model ChatUpload {
@@ -28,6 +33,8 @@ model ChatUpload {
   filename   String
   byteSize   Int
   parsedJson String
+
+  @@schema("chatstory")
 }
 
 model BookConfig {
@@ -41,6 +48,10 @@ model BookConfig {
   chaptersJson     String
   templateId       String
   keyword          String  @default("")
+  coverImage       String  @default("")
+  mediaJson        String  @default("[]")
+
+  @@schema("chatstory")
 }
 
 model Book {
@@ -52,6 +63,8 @@ model Book {
   dedication       String
   pagesJson        String
   isWatermarked    Boolean @default(true)
+
+  @@schema("chatstory")
 }
 
 model Order {
@@ -61,12 +74,17 @@ model Order {
   amountPaise Int       @default(4900)
   status      String    @default("mock_pending")
   unlockedAt  DateTime?
+
+  @@map("orders")
+  @@schema("chatstory")
 }
 
 model RateLimit {
-  id        String   @id @default(cuid())
-  ipHash    String
-  dayKey    String
-  previews  Int      @default(0)
+  id       String @id @default(cuid())
+  ipHash   String
+  dayKey   String
+  previews Int    @default(0)
+
   @@unique([ipHash, dayKey])
+  @@schema("chatstory")
 }

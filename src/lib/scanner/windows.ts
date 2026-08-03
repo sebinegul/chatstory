@@ -1,4 +1,5 @@
 import type { ParsedChat, ParsedMessage } from "@/lib/parser/types";
+import { formatDayKeyDMY } from "@/lib/format-date";
 
 export interface ScanWindow {
   label: string;
@@ -41,6 +42,21 @@ function dayBounds(messages: ParsedMessage[]): { startAt: Date; endAt: Date } {
   };
 }
 
+const BUSY_TITLES = [
+  "A Day Full of Messages",
+  "When the Chat Would Not Sleep",
+  "That Crowded Day",
+  "All the Words at Once",
+  "The Loudest Day",
+];
+
+const TENDER_TITLES = [
+  "Soft Words",
+  "Quiet Affection",
+  "Close to the Heart",
+  "Gentle Lines",
+];
+
 export function buildWindows(
   chat: ParsedChat,
   specialDates: { label: string; date: string }[],
@@ -68,19 +84,24 @@ export function proposeChaptersFromScan(
 
   const { messages } = chat;
   const ideas: ChapterIdea[] = [];
+  const usedTitles = new Set<string>();
 
-  ideas.push({
+  const pushUnique = (idea: ChapterIdea) => {
+    let title = idea.title;
+    let n = 2;
+    while (usedTitles.has(title)) {
+      title = `${idea.title} (${n})`;
+      n += 1;
+    }
+    usedTitles.add(title);
+    ideas.push({ ...idea, title });
+  };
+
+  pushUnique({
     title: "The Beginning",
     startAt: messages[0].at,
-    endAt: messages[0].at,
+    endAt: messages[Math.min(20, messages.length - 1)].at,
     tone: "opening",
-  });
-
-  ideas.push({
-    title: "Where We Are Now",
-    startAt: messages[messages.length - 1].at,
-    endAt: messages[messages.length - 1].at,
-    tone: "closing",
   });
 
   const byDay = new Map<string, ParsedMessage[]>();
@@ -94,15 +115,16 @@ export function proposeChaptersFromScan(
   const sortedDays = [...byDay.entries()].sort(
     (a, b) => b[1].length - a[1].length,
   );
-  for (const [day, dayMessages] of sortedDays.slice(0, 10)) {
+
+  sortedDays.slice(0, 5).forEach(([day, dayMessages], i) => {
     const { startAt, endAt } = dayBounds(dayMessages);
-    ideas.push({
-      title: `Burst: ${day}`,
+    pushUnique({
+      title: `${BUSY_TITLES[i % BUSY_TITLES.length]} · ${formatDayKeyDMY(day)}`,
       startAt,
       endAt,
       tone: "high-energy",
     });
-  }
+  });
 
   let maxGap = 0;
   let gapIndex = -1;
@@ -115,8 +137,8 @@ export function proposeChaptersFromScan(
       gapIndex = i;
     }
   }
-  if (gapIndex > 0 && maxGap > 0) {
-    ideas.push({
+  if (gapIndex > 0 && maxGap >= 3) {
+    pushUnique({
       title: "The Long Pause",
       startAt: messages[gapIndex - 1].at,
       endAt: messages[gapIndex].at,
@@ -124,7 +146,7 @@ export function proposeChaptersFromScan(
     });
   }
 
-  const affectionPattern = /\b(love|miss|sorry|hugs?|kiss|heart)\b/i;
+  const affectionPattern = /\b(love|miss|sorry|hugs?|kiss|heart|care|proud)\b/i;
   const keywordDays = new Map<string, ParsedMessage[]>();
   for (const m of messages) {
     if (!affectionPattern.test(m.body)) continue;
@@ -137,25 +159,23 @@ export function proposeChaptersFromScan(
   const sortedKeywordDays = [...keywordDays.entries()].sort(
     (a, b) => b[1].length - a[1].length,
   );
-  for (const [, dayMessages] of sortedKeywordDays.slice(0, 5)) {
+  sortedKeywordDays.slice(0, 4).forEach(([day, dayMessages], i) => {
     const { startAt, endAt } = dayBounds(dayMessages);
-    ideas.push({
-      title: "Tender Moments",
+    pushUnique({
+      title: `${TENDER_TITLES[i % TENDER_TITLES.length]} · ${formatDayKeyDMY(day)}`,
       startAt,
       endAt,
       tone: "warm",
     });
-  }
+  });
 
-  const seen = new Set<string>();
-  const unique: ChapterIdea[] = [];
-  for (const idea of ideas) {
-    const key = `${idea.title}|${idea.startAt.getTime()}|${idea.endAt.getTime()}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    unique.push(idea);
-    if (unique.length >= max) break;
-  }
+  pushUnique({
+    title: "Where We Are Now",
+    startAt: messages[Math.max(0, messages.length - 21)].at,
+    endAt: messages[messages.length - 1].at,
+    tone: "closing",
+  });
 
-  return unique.slice(0, max);
+  ideas.sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
+  return ideas.slice(0, max);
 }

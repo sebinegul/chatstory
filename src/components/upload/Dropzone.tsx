@@ -36,7 +36,7 @@ export function Dropzone({
       className={`flex cursor-pointer flex-col items-center justify-center rounded-sm border border-dashed px-6 py-14 text-center transition ${
         dragging
           ? "border-[var(--gold)] bg-[var(--paper-deep)]"
-          : "border-[var(--rule)] bg-[color-mix(in_srgb,var(--paper-deep)_55%,transparent)]"
+          : "border-[var(--rule)] bg-[rgba(239,232,220,0.55)]"
       } ${disabled ? "opacity-60" : ""}`}
     >
       <input

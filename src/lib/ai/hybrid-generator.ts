@@ -1,6 +1,7 @@
 import { computeStats } from "@/lib/scanner/stats";
 import { buildWindows } from "@/lib/scanner/windows";
 import { relationshipVoice } from "@/lib/relationships";
+import { formatDayKeyDMY } from "@/lib/format-date";
 import {
   FREE_MODEL,
   STORY_MODEL,
@@ -21,10 +22,9 @@ function noEmDash(text: string): string {
 }
 
 function dayKey(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return formatDayKeyDMY(
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+  );
 }
 
 type TitlePayload = {
@@ -42,14 +42,17 @@ async function freeTitlesAndDedication(
   const voice = relationshipVoice(input.relationship || "couple");
   const raw = await openRouterChat({
     model: FREE_MODEL,
-    system: `You name keepsake books from WhatsApp chats. Voice: ${voice}
-Rules: no em dashes, no cringe, no invented facts. Return JSON only:
+    system: `You name intimate keepsake books from real WhatsApp chats.
+Voice: ${voice}
+The title should feel like a private dedication someone would emboss on a cover, not a blog headline.
+Rules: no em dashes, no cringe, no invented facts, no exclamation marks.
+Return JSON only:
 {"titleOptions":["...","...","..."],"dedication":"..."}`,
     user: `People: ${input.personA} and ${input.personB}
 Relationship: ${input.relationship}
-Keyword: ${input.keyword || "none"}
-Suggest 3 short book titles and one dedication line.`,
-    temperature: 0.7,
+Celebrate keyword (emotional through-line): "${input.keyword || "none"}"
+Suggest 3 short book titles (3-6 words) and one soft dedication line that could make someone pause.`,
+    temperature: 0.75,
   });
   const parsed = parseJsonFromModel<TitlePayload>(raw);
   return {
@@ -67,26 +70,37 @@ async function storyNarrations(
   const voice = relationshipVoice(input.relationship || "couple");
   const raw = await openRouterChat({
     model: STORY_MODEL,
-    system: `You write elegant chapter narrations for a WhatsApp storybook.
+    system: `You write intimate chapter openings for a printed keepsake made from a real WhatsApp chat.
+
+This is not a summary. It is the soft voice between the quotes. The reader should feel closeness, longing, humor, or quiet care.
+
 Voice: ${voice}
+
+Write 4-6 sentences per chapter (about 80-140 words). Vary rhythm: one short line, then a longer one. End in a way that opens onto the quotes that follow.
+
 Hard rules:
-- 2-3 short sentences per chapter
 - No em dashes
-- Never invent quotes, dates, or feelings not supported by the samples
-- When the window is thin, say less
-- Do not repeat the quotes; introduce them
+- Never invent quotes, dates, events, or feelings the samples do not support
+- Name concrete details from the samples: a phrase they used, a time of night, a joke, a habit, a silence, a place, a pet name
+- Do not repeat the upcoming quotes verbatim
+- When samples are thin, still write 3 careful sentences about what little remains
+- Banned phrases: journey, tapestry, delve, testament, cherished memories, in today's world, forever etched, whirlwind, soulmate (unless they said it)
+- Celebrate keyword "${input.keyword || ""}" only when samples support it. Weave it naturally once at most
+- Prefer warmth over drama. Prefer specificity over adjectives
+
 Return JSON only: {"chapters":[{"title":"...","narration":"..."}]}`,
     user: JSON.stringify({
       personA: input.personA,
       personB: input.personB,
       relationship: input.relationship,
+      celebrateKeyword: input.keyword || "",
       chapters: chapters.map((c) => ({
         title: c.title,
-        quoteCount: c.quotes.length,
-        sampleLines: c.sample.slice(0, 12),
+        upcomingQuotes: c.quotes.slice(0, 3),
+        sampleLines: c.sample.slice(0, 24),
       })),
     }),
-    temperature: 0.55,
+    temperature: 0.78,
   });
   return parseJsonFromModel<StoryPayload>(raw);
 }
@@ -168,7 +182,7 @@ export async function generateBookWithModels(
 
     const title = titleOptions[0];
     const pages: BookPageModel[] = [
-      { type: "cover", title, subtitle: "From a WhatsApp chat" },
+      { type: "cover", title },
       { type: "dedication", text: dedication },
     ];
 

@@ -24,4 +24,15 @@ describe("proposeChaptersFromScan", () => {
     const chat = parseWhatsAppExport(lines);
     expect(proposeChaptersFromScan(chat, 15).length).toBeLessThanOrEqual(15);
   });
+
+  it("uses human chapter titles, not Burst: YYYY-MM-DD", () => {
+    const lines = Array.from({ length: 30 }, (_, i) => {
+      const day = (i % 10) + 1;
+      return `[3/${day}/26, 9:00:00 PM] A: hello there friend ${i}`;
+    }).join("\n");
+    const chat = parseWhatsAppExport(lines);
+    const chapters = proposeChaptersFromScan(chat, 15);
+    expect(chapters.some((c) => c.title.startsWith("Burst:"))).toBe(false);
+    expect(chapters[0]?.title).toBe("The Beginning");
+  });
 });

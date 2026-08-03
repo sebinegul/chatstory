@@ -16,7 +16,7 @@ export function MockRazorpayModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[color-mix(in_srgb,var(--ink)_45%,transparent)] p-4 sm:items-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(28,25,23,0.45)] p-4 sm:items-center">
       <div className="w-full max-w-md rounded-sm bg-[var(--paper)] p-6 shadow-xl">
         <p className="font-[family-name:var(--font-jost)] text-xs uppercase tracking-[0.2em] text-[var(--muted)]">
           Mock Razorpay

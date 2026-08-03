@@ -12,10 +12,14 @@ describe("computeStats", () => {
     expect(s.totalMessages).toBe(3);
   });
 
-  it("computes longest silence in whole days", () => {
-    const chat = parseWhatsAppExport(`[3/1/26, 9:00:00 PM] A: hi
-[3/10/26, 9:00:00 PM] B: back`);
+  it("suggests the most used meaningful word when no keyword given", () => {
+    const chat = parseWhatsAppExport(`[3/2/26, 9:00:00 PM] A: booboo night
+[3/2/26, 9:01:00 PM] B: booboo again
+[3/2/26, 9:02:00 PM] A: booboo forever
+[3/2/26, 9:03:00 PM] B: coffee tomorrow`);
     const s = computeStats(chat);
-    expect(s.longestSilenceDays).toBeGreaterThanOrEqual(8);
+    expect(s.suggestedKeyword).toBe("booboo");
+    expect(s.keyword).toBe("booboo");
+    expect(s.keywordCount).toBe(3);
   });
 });

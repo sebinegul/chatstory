@@ -8,6 +8,12 @@ import { hashIp } from "@/lib/ip";
 import type { TemplateId } from "@/lib/templates/registry";
 import type { ChapterIdea } from "@/lib/scanner/windows";
 import type { RelationshipId } from "@/lib/relationships";
+import type { ExtraBookImage } from "@/lib/media";
+import { applyBookMedia } from "@/lib/ai/apply-media";
+import { isGhibliTemplate } from "@/lib/templates/registry";
+import { stylizeBookImagesGhibli } from "@/lib/ai/ghibli-style";
+
+export const maxDuration = 120;
 
 function clientIp(req: NextRequest): string {
   return (
@@ -25,10 +31,11 @@ export async function POST(req: NextRequest) {
     }
 
     const session = await getSessionOrThrow(sessionId);
-    const ipHash = session.clientIpHash || hashIp(clientIp(req));
+    const rawIp = clientIp(req);
+    const ipHash = session.clientIpHash || hashIp(rawIp);
 
     try {
-      await assertPreviewAllowed(ipHash);
+      await assertPreviewAllowed(ipHash, rawIp);
     } catch {
       return NextResponse.json(
         { error: "You have reached today's free preview limit (2 per day)." },
@@ -58,7 +65,24 @@ export async function POST(req: NextRequest) {
     const chapters = JSON.parse(config.chaptersJson) as ChapterIdea[];
     const aiChooses = chapters.length === 0;
 
-    const book = await bookGenerator.generateBook({
+    let media: ExtraBookImage[] = [];
+    try {
+      media = JSON.parse(config.mediaJson || "[]") as ExtraBookImage[];
+    } catch {
+      media = [];
+    }
+
+    let coverImage = config.coverImage || undefined;
+    if (isGhibliTemplate(config.templateId)) {
+      const styled = await stylizeBookImagesGhibli({
+        coverImage,
+        extraImages: media,
+      });
+      coverImage = styled.coverImage;
+      media = (styled.extraImages || []) as ExtraBookImage[];
+    }
+
+    const rawBook = await bookGenerator.generateBook({
       chat,
       personA: config.personA,
       personB: config.personB,
@@ -72,7 +96,11 @@ export async function POST(req: NextRequest) {
       aiChooses,
       templateId: config.templateId as TemplateId,
       keyword: config.keyword,
+      coverImage,
+      extraImages: media,
     });
+
+    const book = applyBookMedia(rawBook, coverImage, media);
 
     await prisma.book.upsert({
       where: { sessionId },
@@ -93,7 +121,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await recordPreview(ipHash);
+    await recordPreview(ipHash, rawIp);
     await prisma.session.update({
       where: { id: sessionId },
       data: { status: "preview", previewCount: { increment: 1 } },

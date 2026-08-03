@@ -9,6 +9,7 @@
   --color-muted: var(--muted);
   --color-gold: var(--gold);
   --color-gold-deep: var(--gold-deep);
+  --color-accent: var(--accent);
   --color-danger: var(--danger);
   --font-display: var(--font-cormorant);
   --font-serif: var(--font-eb-garamond);
@@ -23,8 +24,8 @@ body {
 
 .paper-wash {
   background:
-    radial-gradient(ellipse at 20% 10%, color-mix(in srgb, var(--gold) 14%, transparent), transparent 45%),
-    radial-gradient(ellipse at 90% 80%, color-mix(in srgb, var(--paper-deep) 80%, transparent), transparent 40%),
+    radial-gradient(ellipse at 20% 10%, rgba(176, 141, 87, 0.14), transparent 45%),
+    radial-gradient(ellipse at 90% 80%, rgba(239, 232, 220, 0.8), transparent 40%),
     linear-gradient(180deg, var(--paper), var(--paper-deep));
   opacity: 1;
 }
@@ -53,12 +54,13 @@ body {
 }
 
 .book-page {
-  background: color-mix(in srgb, var(--paper) 92%, white);
-  box-shadow: 0 1px 0 var(--rule);
+  background: #f8f5ef;
+  box-shadow: 0 1px 0 rgba(176, 141, 87, 0.35);
 }
 
 .book-gold {
   background: #f7f3ec;
+  color: #1c1917;
 }
 
 .book-minimal {
@@ -68,4 +70,10 @@ body {
 
 .book-pastel {
   background: #faf3f1;
+  color: #4a3030;
+}
+
+.book-ghibli {
+  background: #eef8f2;
+  color: #2f4a3e;
 }
