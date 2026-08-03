@@ -20,9 +20,7 @@ export function ChatStoryMark({
       className={`font-[family-name:var(--font-space)] font-semibold tracking-tight text-[var(--ink)] ${sizes[size]}`}
     >
       Chat
-      <span className="bg-gradient-to-r from-[#2dd4bf] to-[#38bdf8] bg-clip-text text-transparent">
-        Story
-      </span>
+      <span className="text-[var(--accent)]">Story</span>
     </Link>
   );
 }
