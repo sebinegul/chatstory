@@ -112,27 +112,34 @@ function joinBlocks(...parts: (string | undefined | null)[]): string {
     .join("\n\n---\n\n");
 }
 
+/** Keep system prompts small enough for free/fast models (avoids silent mock fallback). */
+function clipForModel(text: string, maxChars: number): string {
+  const t = text.trim();
+  if (!t) return "";
+  if (t.length <= maxChars) return t;
+  return `${t.slice(0, maxChars).trim()}\n\n(…truncated)`;
+}
+
 /**
  * Mandatory stack for chapter work.
  * Optional mid-rules sit after writing_rules and before humanizer.txt.
+ * Files are clipped so OpenRouter free models don't choke / return garbage.
  */
 export function buildMandatoryChapterStack(opts: {
   relationship: RelationshipId;
   midRules?: (string | undefined | null)[];
+  /** When true, keep more of the relationship guide (paid story models). */
+  generous?: boolean;
 }): string {
+  const relMax = opts.generous ? 2800 : 1600;
+  const humanMax = opts.generous ? 1600 : 1000;
   return joinBlocks(
-    // 1
-    getSystemPreamble(),
-    // 2
-    getWritingRules(),
-    // 3 — optional rules before humanizer
+    clipForModel(getSystemPreamble(), 500),
+    clipForModel(getWritingRules(), 700),
     ...(opts.midRules || []),
-    // 4
-    getHumanizerRules(),
-    // 5 — dynamic from UI
-    getRelationshipPrompt(opts.relationship),
-    // 6
-    getQualityCheckRules(),
+    clipForModel(getHumanizerRules(), humanMax),
+    clipForModel(getRelationshipPrompt(opts.relationship), relMax),
+    clipForModel(getQualityCheckRules(), 500),
   );
 }
 
@@ -142,13 +149,13 @@ export function buildTitleDedicationSystem(opts: {
   languageBlock: string;
 }): string {
   return joinBlocks(
-    getSystemPreamble(),
-    getWritingRules(),
-    getTitleRules(),
-    getDedicationRules(),
-    getHumanizerRules(),
-    getRelationshipPrompt(opts.relationship),
-    getQualityCheckRules(),
+    clipForModel(getSystemPreamble(), 400),
+    clipForModel(getWritingRules(), 600),
+    clipForModel(getTitleRules(), 500),
+    clipForModel(getDedicationRules(), 300),
+    clipForModel(getHumanizerRules(), 800),
+    clipForModel(getRelationshipPrompt(opts.relationship), 1200),
+    clipForModel(getQualityCheckRules(), 400),
     `Voice: ${relationshipVoice(opts.relationship)}`,
     opts.languageBlock,
     `Hard rules: no em dashes, no cringe, no invented facts, no exclamation marks.
@@ -167,15 +174,19 @@ export function buildChapterNarrationSystem(opts: {
   languageBlock: string;
   writeIn: string;
 }): string {
+  const paidStory = Boolean(
+    (process.env.OPENROUTER_STORY_MODEL || "").trim(),
+  );
   return joinBlocks(
     buildMandatoryChapterStack({
       relationship: opts.relationship,
+      generous: paidStory,
       midRules: [
         `You write intimate chapter openings for a printed keepsake made from a real WhatsApp chat.
 This is not a summary. It is the soft voice between the quotes — grounded only in the sample lines.
 Voice: ${relationshipVoice(opts.relationship)}`,
-        getBestPractices(),
-        getChapterRules(),
+        clipForModel(getBestPractices(), 700),
+        clipForModel(getChapterRules(), 400),
       ],
     }),
     opts.languageBlock,
@@ -188,8 +199,8 @@ Voice: ${relationshipVoice(opts.relationship)}`,
 - If the samples are mostly logistics or empty banter with no clear memory, write 2 short honest sentences and do not fake drama
 - When samples are thin, write less
 - Match the selected relationship type exactly
-- Follow humanizer.txt and quality_check.txt — reject AI sludge and clichés
 - No em dashes
+- 3–5 short sentences per chapter unless samples are thin
 
 Return JSON only: {"chapters":[{"title":"...","narration":"..."}]}
 Use each chapter title EXACTLY as given. Return one object per chapter, in the same order.

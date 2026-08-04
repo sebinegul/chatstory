@@ -53,7 +53,12 @@ type StoryPayload = {
 
 /** Keep AI chapter count inside Vercel function time budgets. */
 const MAX_AI_CHAPTERS = 8;
-const STORY_BATCH = 4;
+/** Small batches = fewer JSON failures / timeouts on free models. */
+const STORY_BATCH = 2;
+
+function normalizeTitle(t: string): string {
+  return t.trim().toLowerCase().replace(/\s+/g, " ");
+}
 
 async function freeTitlesAndDedication(
   input: GenerateBookInput,
@@ -63,8 +68,9 @@ async function freeTitlesAndDedication(
   const raw = await openRouterChat({
     model: FREE_MODEL,
     fallbacks: FREE_MODEL_CANDIDATES,
-    maxAttempts: 2,
-    timeoutMs: 25_000,
+    maxAttempts: 3,
+    timeoutMs: 30_000,
+    json: true,
     system: buildTitleDedicationSystem({
       relationship,
       languageBlock: languagePromptBlock(lang),
@@ -86,51 +92,132 @@ Write titles and dedication in ${lang.writeIn}.`,
   };
 }
 
+async function storyNarrationsBatch(
+  input: GenerateBookInput,
+  chapters: { title: string; quotes: string[]; sample: string[] }[],
+  lang: DetectedLanguage,
+  system: string,
+): Promise<{ title: string; narration: string }[]> {
+  const relationship = input.relationship || "couple";
+  const raw = await openRouterChat({
+    model: STORY_MODEL,
+    fallbacks: STORY_MODEL_CANDIDATES,
+    maxAttempts: 3,
+    timeoutMs: 50_000,
+    json: true,
+    system,
+    user: JSON.stringify({
+      people: peopleLabelForBook(relationship, input.personA, input.personB),
+      personA: input.personA,
+      personB: input.personB,
+      relationship,
+      language: lang.label,
+      writeIn: lang.writeIn,
+      instruction:
+        "Write memoir-style openings. Do not summarize. Do not paste samples. Quotes are shown separately.",
+      chapters: chapters.map((c) => ({
+        title: c.title,
+        upcomingQuotes: c.quotes.slice(0, 3),
+        sampleLines: c.sample.slice(0, 12),
+      })),
+    }),
+    temperature: 0.7,
+  });
+  const parsed = parseJsonFromModel<StoryPayload>(raw);
+  return (parsed.chapters || []).filter((c) => c?.title && c?.narration);
+}
+
 async function storyNarrations(
   input: GenerateBookInput,
   chapters: { title: string; quotes: string[]; sample: string[] }[],
   lang: DetectedLanguage,
 ): Promise<StoryPayload> {
-  const relationship = input.relationship || "couple";
-  const merged: { title: string; narration: string }[] = [];
   const system = buildChapterNarrationSystem({
-    relationship,
+    relationship: input.relationship || "couple",
     languageBlock: languagePromptBlock(lang),
     writeIn: lang.writeIn,
   });
+  const merged: { title: string; narration: string }[] = [];
 
   for (let i = 0; i < chapters.length; i += STORY_BATCH) {
     const batch = chapters.slice(i, i + STORY_BATCH);
-    const raw = await openRouterChat({
-      model: STORY_MODEL,
-      fallbacks: STORY_MODEL_CANDIDATES,
-      maxAttempts: 2,
-      timeoutMs: 45_000,
-      system,
-      user: JSON.stringify({
-        people: peopleLabelForBook(relationship, input.personA, input.personB),
-        personA: input.personA,
-        personB: input.personB,
-        relationship,
-        language: lang.label,
-        writeIn: lang.writeIn,
-        instruction:
-          "Write memoir-style openings. Do not summarize. Do not paste samples. Quotes are shown separately.",
-        chapters: batch.map((c) => ({
-          title: c.title,
-          upcomingQuotes: c.quotes.slice(0, 3),
-          sampleLines: c.sample.slice(0, 16),
-        })),
-      }),
-      temperature: 0.7,
-    });
-    const parsed = parseJsonFromModel<StoryPayload>(raw);
-    for (const c of parsed.chapters || []) {
-      if (c?.title && c?.narration) merged.push(c);
+    try {
+      const got = await storyNarrationsBatch(input, batch, lang, system);
+      if (got.length > 0) {
+        merged.push(...got);
+        continue;
+      }
+      throw new Error("Empty chapters array from model");
+    } catch (err) {
+      console.warn(
+        `[chatstory] story batch failed (${batch.map((c) => c.title).join(", ")}), retrying one-by-one`,
+        err instanceof Error ? err.message : err,
+      );
+      for (const chapter of batch) {
+        try {
+          const one = await storyNarrationsBatch(
+            input,
+            [chapter],
+            lang,
+            system,
+          );
+          if (one[0]?.narration) merged.push(one[0]);
+        } catch (oneErr) {
+          console.warn(
+            `[chatstory] story chapter failed: ${chapter.title}`,
+            oneErr instanceof Error ? oneErr.message : oneErr,
+          );
+        }
+      }
     }
   }
 
   return { chapters: merged };
+}
+
+function assignNarrations(
+  prepared: { chapter: { title: string } }[],
+  storyChapters: { title: string; narration: string }[],
+): { byIndex: string[]; byTitle: Map<string, string>; aiHits: number } {
+  const byIndex: string[] = [];
+  const byTitle = new Map<string, string>();
+  const unused = [...storyChapters];
+
+  for (let i = 0; i < prepared.length; i++) {
+    const want = normalizeTitle(prepared[i].chapter.title);
+    const exact = unused.findIndex((c) => normalizeTitle(c.title) === want);
+    if (exact >= 0) {
+      const [hit] = unused.splice(exact, 1);
+      const text = noEmDash(String(hit.narration));
+      byIndex[i] = text;
+      byTitle.set(prepared[i].chapter.title, text);
+      byTitle.set(hit.title.trim(), text);
+      continue;
+    }
+    // Fuzzy: title contained / contains
+    const fuzzy = unused.findIndex((c) => {
+      const got = normalizeTitle(c.title);
+      return got.includes(want) || want.includes(got);
+    });
+    if (fuzzy >= 0) {
+      const [hit] = unused.splice(fuzzy, 1);
+      const text = noEmDash(String(hit.narration));
+      byIndex[i] = text;
+      byTitle.set(prepared[i].chapter.title, text);
+    }
+  }
+
+  // Remaining by order into empty slots
+  for (let i = 0; i < prepared.length && unused.length > 0; i++) {
+    if (byIndex[i]) continue;
+    const hit = unused.shift()!;
+    const text = noEmDash(String(hit.narration));
+    byIndex[i] = text;
+    byTitle.set(prepared[i].chapter.title, text);
+  }
+
+  const aiHits = byIndex.filter(Boolean).length;
+  return { byIndex, byTitle, aiHits };
 }
 
 export async function generateBookWithModels(
@@ -212,9 +299,9 @@ export async function generateBookWithModels(
     }
 
     // Story model: main narrations only
-    // Match by index first — models often rewrite titles slightly.
     const narrationsByIndex: string[] = [];
     let narrationByTitle = new Map<string, string>();
+    let aiHits = 0;
     try {
       const story = await storyNarrations(
         input,
@@ -225,17 +312,24 @@ export async function generateBookWithModels(
         })),
         lang,
       );
-      (story.chapters || []).forEach((c, i) => {
-        if (!c?.narration) return;
-        const text = noEmDash(String(c.narration));
-        narrationsByIndex[i] = text;
-        if (c.title) narrationByTitle.set(String(c.title).trim(), text);
-        if (prepared[i]) {
-          narrationByTitle.set(prepared[i].chapter.title, text);
-        }
+      const assigned = assignNarrations(prepared, story.chapters || []);
+      assigned.byIndex.forEach((text, i) => {
+        if (text) narrationsByIndex[i] = text;
       });
+      narrationByTitle = assigned.byTitle;
+      aiHits = assigned.aiHits;
     } catch (err) {
       console.warn("Story model failed, falling back chapter narrations", err);
+    }
+
+    if (aiHits === 0 && prepared.length > 0) {
+      console.warn(
+        "[chatstory] zero AI narrations — PDF will use template fallback voice. Check OPENROUTER_API_KEY / OPENROUTER_STORY_MODEL and Vercel logs.",
+      );
+    } else {
+      console.info(
+        `[chatstory] AI narrations ${aiHits}/${prepared.length} (model=${STORY_MODEL})`,
+      );
     }
 
     const title = titleOptions[0];

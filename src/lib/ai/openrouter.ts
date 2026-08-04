@@ -32,9 +32,9 @@ export const STORY_MODEL_CANDIDATES: string[] = Array.from(
 );
 
 /** Per-attempt OpenRouter timeout — prevents one hung free model from burning the whole Vercel window. */
-const DEFAULT_ATTEMPT_TIMEOUT_MS = 35_000;
+const DEFAULT_ATTEMPT_TIMEOUT_MS = 40_000;
 /** Don't walk the entire free-model list on every call (that alone can cause 504s). */
-const DEFAULT_MAX_ATTEMPTS = 2;
+const DEFAULT_MAX_ATTEMPTS = 3;
 
 export function hasOpenRouterKey(): boolean {
   return Boolean(cleanEnv(process.env.OPENROUTER_API_KEY));
@@ -72,12 +72,14 @@ async function openRouterChatOnce({
   user,
   temperature = 0.6,
   timeoutMs = DEFAULT_ATTEMPT_TIMEOUT_MS,
+  json = false,
 }: {
   model: string;
   system: string;
   user: string;
   temperature?: number;
   timeoutMs?: number;
+  json?: boolean;
 }): Promise<string> {
   const key = cleanEnv(process.env.OPENROUTER_API_KEY);
   if (!key) {
@@ -88,29 +90,35 @@ async function openRouterChatOnce({
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const body: Record<string, unknown> = {
+      model,
+      temperature,
+      max_tokens: 2500,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+    };
+    if (json) {
+      body.response_format = { type: "json_object" };
+    }
+
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       signal: controller.signal,
       headers: {
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "http://localhost:3000",
+        "HTTP-Referer":
+          process.env.OPENROUTER_SITE_URL || "https://chatstory-psi.vercel.app",
         "X-Title": "ChatStory",
       },
-      body: JSON.stringify({
-        model,
-        temperature,
-        // Chapter JSON does not need huge completions — keeps latency down
-        max_tokens: 2500,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
       const text = await res.text();
+      // Some free models reject response_format — caller can retry without json
       throw new Error(`OpenRouter ${res.status} (${model}): ${text.slice(0, 300)}`);
     }
 
@@ -139,6 +147,7 @@ export async function openRouterChat({
   fallbacks,
   timeoutMs = DEFAULT_ATTEMPT_TIMEOUT_MS,
   maxAttempts = DEFAULT_MAX_ATTEMPTS,
+  json = false,
 }: {
   model: string;
   system: string;
@@ -147,6 +156,7 @@ export async function openRouterChat({
   fallbacks?: string[];
   timeoutMs?: number;
   maxAttempts?: number;
+  json?: boolean;
 }): Promise<string> {
   const chain = Array.from(
     new Set([cleanEnv(model) || model, ...(fallbacks || [])].filter(Boolean)),
@@ -154,18 +164,28 @@ export async function openRouterChat({
   const errors: string[] = [];
 
   for (const candidate of chain) {
-    try {
-      return await openRouterChatOnce({
-        model: candidate,
-        system,
-        user,
-        temperature,
-        timeoutMs,
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[openrouter] ${candidate} failed:`, msg.slice(0, 200));
-      errors.push(msg.slice(0, 120));
+    for (const useJson of json ? [true, false] : [false]) {
+      try {
+        return await openRouterChatOnce({
+          model: candidate,
+          system,
+          user,
+          temperature,
+          timeoutMs,
+          json: useJson,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(
+          `[openrouter] ${candidate}${useJson ? " json" : ""} failed:`,
+          msg.slice(0, 200),
+        );
+        errors.push(msg.slice(0, 120));
+        // Only retry without json when the error looks like format rejection
+        if (useJson && !/400|response_format|json_object/i.test(msg)) {
+          break;
+        }
+      }
     }
   }
 
@@ -176,9 +196,34 @@ export async function openRouterChat({
 
 export function parseJsonFromModel<T>(raw: string): T {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const text = fenced ? fenced[1] : raw;
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("No JSON object in model output");
-  return JSON.parse(text.slice(start, end + 1)) as T;
+  const text = (fenced ? fenced[1] : raw).trim();
+
+  const objStart = text.indexOf("{");
+  const objEnd = text.lastIndexOf("}");
+  const arrStart = text.indexOf("[");
+  const arrEnd = text.lastIndexOf("]");
+
+  let candidate = "";
+  // If a JSON array appears before any object, treat it as chapters[]
+  if (
+    arrStart !== -1 &&
+    arrEnd > arrStart &&
+    (objStart === -1 || arrStart < objStart)
+  ) {
+    candidate = `{"chapters":${text.slice(arrStart, arrEnd + 1)}}`;
+  } else if (objStart !== -1 && objEnd > objStart) {
+    candidate = text.slice(objStart, objEnd + 1);
+  } else {
+    throw new Error("No JSON object in model output");
+  }
+
+  try {
+    return JSON.parse(candidate) as T;
+  } catch {
+    const fixed = candidate
+      .replace(/,\s*([\]}])/g, "$1")
+      .replace(/\n/g, " ")
+      .replace(/\t/g, " ");
+    return JSON.parse(fixed) as T;
+  }
 }
