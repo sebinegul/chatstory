@@ -11,7 +11,7 @@ import type { RelationshipId } from "@/lib/relationships";
 import type { ExtraBookImage } from "@/lib/media";
 import { applyBookMedia } from "@/lib/ai/apply-media";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 function clientIp(req: NextRequest): string {
   return (
@@ -121,6 +121,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, title: book.title });
   } catch (err) {
     console.error(err);
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/timeout|AbortError|FUNCTION_INVOCATION/i.test(msg)) {
+      return NextResponse.json(
+        {
+          error:
+            "Writing took too long for the server. Try again, or pick fewer custom chapters.",
+          code: "TIMEOUT",
+        },
+        { status: 504 },
+      );
+    }
     return NextResponse.json({ error: "Generation failed." }, { status: 500 });
   }
 }

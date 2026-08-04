@@ -8,6 +8,8 @@ import type { TemplateId } from "@/lib/templates/registry";
 import type { ChapterIdea } from "@/lib/scanner/windows";
 import type { RelationshipId } from "@/lib/relationships";
 
+export const maxDuration = 60;
+
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();

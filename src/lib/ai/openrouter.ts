@@ -31,6 +31,11 @@ export const STORY_MODEL_CANDIDATES: string[] = Array.from(
   new Set([STORY_MODEL, ...FREE_MODEL_CANDIDATES].filter(Boolean)),
 );
 
+/** Per-attempt OpenRouter timeout — prevents one hung free model from burning the whole Vercel window. */
+const DEFAULT_ATTEMPT_TIMEOUT_MS = 35_000;
+/** Don't walk the entire free-model list on every call (that alone can cause 504s). */
+const DEFAULT_MAX_ATTEMPTS = 2;
+
 export function hasOpenRouterKey(): boolean {
   return Boolean(cleanEnv(process.env.OPENROUTER_API_KEY));
 }
@@ -66,47 +71,63 @@ async function openRouterChatOnce({
   system,
   user,
   temperature = 0.6,
+  timeoutMs = DEFAULT_ATTEMPT_TIMEOUT_MS,
 }: {
   model: string;
   system: string;
   user: string;
   temperature?: number;
+  timeoutMs?: number;
 }): Promise<string> {
   const key = cleanEnv(process.env.OPENROUTER_API_KEY);
   if (!key) {
     throw new Error("OPENROUTER_API_KEY missing");
   }
 
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "http://localhost:3000",
-      "X-Title": "ChatStory",
-    },
-    body: JSON.stringify({
-      model,
-      temperature,
-      max_tokens: 8000,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`OpenRouter ${res.status} (${model}): ${text.slice(0, 300)}`);
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "http://localhost:3000",
+        "X-Title": "ChatStory",
+      },
+      body: JSON.stringify({
+        model,
+        temperature,
+        // Chapter JSON does not need huge completions — keeps latency down
+        max_tokens: 2500,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`OpenRouter ${res.status} (${model}): ${text.slice(0, 300)}`);
+    }
+
+    const data = (await res.json()) as {
+      choices?: { message?: unknown }[];
+    };
+    const content = extractContent(data.choices?.[0]?.message);
+    if (!content) throw new Error(`Empty OpenRouter response (${model})`);
+    return content;
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(`OpenRouter timeout after ${timeoutMs}ms (${model})`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-
-  const data = (await res.json()) as {
-    choices?: { message?: unknown }[];
-  };
-  const content = extractContent(data.choices?.[0]?.message);
-  if (!content) throw new Error(`Empty OpenRouter response (${model})`);
-  return content;
 }
 
 /** Try models in order until one returns usable text. */
@@ -116,16 +137,20 @@ export async function openRouterChat({
   user,
   temperature = 0.6,
   fallbacks,
+  timeoutMs = DEFAULT_ATTEMPT_TIMEOUT_MS,
+  maxAttempts = DEFAULT_MAX_ATTEMPTS,
 }: {
   model: string;
   system: string;
   user: string;
   temperature?: number;
   fallbacks?: string[];
+  timeoutMs?: number;
+  maxAttempts?: number;
 }): Promise<string> {
   const chain = Array.from(
     new Set([cleanEnv(model) || model, ...(fallbacks || [])].filter(Boolean)),
-  );
+  ).slice(0, Math.max(1, maxAttempts));
   const errors: string[] = [];
 
   for (const candidate of chain) {
@@ -135,6 +160,7 @@ export async function openRouterChat({
         system,
         user,
         temperature,
+        timeoutMs,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

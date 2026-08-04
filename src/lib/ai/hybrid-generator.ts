@@ -50,6 +50,10 @@ type StoryPayload = {
   chapters: { title: string; narration: string }[];
 };
 
+/** Keep AI chapter count inside Vercel function time budgets. */
+const MAX_AI_CHAPTERS = 8;
+const STORY_BATCH = 4;
+
 async function freeTitlesAndDedication(
   input: GenerateBookInput,
   lang: DetectedLanguage,
@@ -58,6 +62,8 @@ async function freeTitlesAndDedication(
   const raw = await openRouterChat({
     model: FREE_MODEL,
     fallbacks: FREE_MODEL_CANDIDATES,
+    maxAttempts: 2,
+    timeoutMs: 25_000,
     system: buildTitleDedicationSystem({
       relationship,
       languageBlock: languagePromptBlock(lang),
@@ -85,7 +91,6 @@ async function storyNarrations(
   lang: DetectedLanguage,
 ): Promise<StoryPayload> {
   const relationship = input.relationship || "couple";
-  const BATCH = 4;
   const merged: { title: string; narration: string }[] = [];
   const system = buildChapterNarrationSystem({
     relationship,
@@ -93,11 +98,13 @@ async function storyNarrations(
     writeIn: lang.writeIn,
   });
 
-  for (let i = 0; i < chapters.length; i += BATCH) {
-    const batch = chapters.slice(i, i + BATCH);
+  for (let i = 0; i < chapters.length; i += STORY_BATCH) {
+    const batch = chapters.slice(i, i + STORY_BATCH);
     const raw = await openRouterChat({
       model: STORY_MODEL,
       fallbacks: STORY_MODEL_CANDIDATES,
+      maxAttempts: 2,
+      timeoutMs: 45_000,
       system,
       user: JSON.stringify({
         people: peopleLabelForBook(relationship, input.personA, input.personB),
@@ -109,7 +116,7 @@ async function storyNarrations(
         chapters: batch.map((c) => ({
           title: c.title,
           upcomingQuotes: c.quotes.slice(0, 3),
-          sampleLines: c.sample.slice(0, 20),
+          sampleLines: c.sample.slice(0, 16),
         })),
       }),
       temperature: 0.7,
@@ -133,7 +140,7 @@ export async function generateBookWithModels(
   try {
     const relationship = input.relationship || "couple";
     const lang = detectChatLanguage(input.chat);
-    const chapterIdeas = resolveChapters(input);
+    const chapterIdeas = resolveChapters(input).slice(0, MAX_AI_CHAPTERS);
     const windows = buildWindows(input.chat, input.specialDates);
     const stats = computeStats(input.chat, undefined);
 
@@ -152,7 +159,7 @@ export async function generateBookWithModels(
         chapter,
         windowMessages,
         quotes,
-        sample: windowMessages.slice(0, 20).map((m) => `${m.author}: ${m.body}`),
+        sample: windowMessages.slice(0, 16).map((m) => `${m.author}: ${m.body}`),
       };
     });
 
@@ -218,28 +225,23 @@ export async function generateBookWithModels(
     ];
 
     const timeline: { at: string; label: string }[] = [];
-    const humanizeOpts = {
-      relationship: relationship as RelationshipId,
-      lang,
-      personA: input.personA,
-      personB: input.personB,
-    };
-
+    // humanizer.txt is already in the chapter system stack — skip a second
+    // per-chapter OpenRouter pass here (that alone caused Vercel 504s).
     for (let i = 0; i < prepared.length; i++) {
       const p = prepared[i];
-      let narration =
+      const narration = noEmDash(
         narrationsByIndex[i] ||
-        narrationByTitle.get(p.chapter.title) ||
-        narrationForChapter({
-          personA: input.personA,
-          personB: input.personB,
-          title: p.chapter.title,
-          relationship,
-          quotes: p.quotes,
-          messageCount: p.windowMessages.length,
-          chapterIndex: i,
-        });
-      narration = await humanizeNarration(narration, humanizeOpts);
+          narrationByTitle.get(p.chapter.title) ||
+          narrationForChapter({
+            personA: input.personA,
+            personB: input.personB,
+            title: p.chapter.title,
+            relationship,
+            quotes: p.quotes,
+            messageCount: p.windowMessages.length,
+            chapterIndex: i,
+          }),
+      );
 
       pages.push({
         type: "chapter",
@@ -259,43 +261,21 @@ export async function generateBookWithModels(
       });
     }
 
-    // Special-date windows not already covered
+    // Special-date windows: local narration only (no extra model round-trips)
     for (const w of windows) {
       if (w.messages.length === 0) continue;
       if (pages.some((p) => p.type === "chapter" && p.title === w.label)) continue;
-      if (pages.filter((p) => p.type === "chapter").length >= 15) break;
+      if (pages.filter((p) => p.type === "chapter").length >= MAX_AI_CHAPTERS) break;
       const quotes = pickQuotes(w.messages, 2);
-      let narration = narrationByTitle.get(w.label);
-      if (!narration) {
-        try {
-          const one = await storyNarrations(
-            input,
-            [
-              {
-                title: w.label,
-                quotes: quotes.map((q) => q.text),
-                sample: w.messages.slice(0, 12).map((m) => `${m.author}: ${m.body}`),
-              },
-            ],
-            lang,
-          );
-          narration = noEmDash(one.chapters?.[0]?.narration || "");
-        } catch {
-          narration = "";
-        }
-      }
-      if (!narration) {
-        narration = narrationForChapter({
-          personA: input.personA,
-          personB: input.personB,
-          title: w.label,
-          relationship,
-          quotes,
-          messageCount: w.messages.length,
-          chapterIndex: pages.filter((p) => p.type === "chapter").length,
-        });
-      }
-      narration = await humanizeNarration(narration, humanizeOpts);
+      const narration = narrationForChapter({
+        personA: input.personA,
+        personB: input.personB,
+        title: w.label,
+        relationship,
+        quotes,
+        messageCount: w.messages.length,
+        chapterIndex: pages.filter((p) => p.type === "chapter").length,
+      });
       pages.push({
         type: "chapter",
         title: w.label,
