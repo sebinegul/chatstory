@@ -1,29 +1,11 @@
-Generate 5 book titles.
+Generate up to 5 book titles for a printed keepsake made from a real WhatsApp chat.
 
-Titles should be poetic.
+Titles must feel specific to THIS chat — echo a phrase, joke, habit, nickname, place, or mood from the sample lines.
+Do not invent romance or drama that is not in the samples.
+Do not reuse stock keepsake phrasing.
 
-Avoid generic words like:
+Banned words (never use): Journey, Forever, Together, Always, Story, ChatStory, Chronicle, Memories, Bond.
 
-Journey
+Length: 3–7 words. Soft and intimate, not clickbait. No exclamation marks. No em dashes.
 
-Forever
-
-Together
-
-Always
-
-Story
-
-Prefer titles inspired by the conversations.
-
-Examples:
-
-The Days We Never Counted
-
-Between Good Morning and Good Night
-
-Somewhere Between the Messages
-
-What We Kept Saying
-
-The Little Things We Never Forgot
+If samples are thin, lean on names + one concrete detail from the samples — never fill with generic poetry.

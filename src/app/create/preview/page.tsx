@@ -22,6 +22,8 @@ function pageLabel(page: BookPageModel | undefined, index: number): string {
 export default function PreviewPage() {
   const router = useRouter();
   const [pages, setPages] = useState<BookPageModel[]>([]);
+  const [titleOptions, setTitleOptions] = useState<string[]>([]);
+  const [bookTitle, setBookTitle] = useState("");
   const [templateId, setTemplateId] = useState<TemplateId>("elegant-gold");
   const [isWatermarked, setIsWatermarked] = useState(true);
   const [pageIndex, setPageIndex] = useState(0);
@@ -80,6 +82,10 @@ export default function PreviewPage() {
         return;
       }
       setPages(data.pages);
+      setTitleOptions(
+        Array.isArray(data.titleOptions) ? data.titleOptions : [],
+      );
+      setBookTitle(typeof data.title === "string" ? data.title : "");
       setTemplateId(data.templateId);
       setIsWatermarked(data.isWatermarked);
       setPageIndex(0);
@@ -98,6 +104,29 @@ export default function PreviewPage() {
     setCaption("");
     setMediaNote(null);
   }, [pageIndex]);
+
+  async function chooseTitle(nextTitle: string) {
+    const sessionId = sessionStorage.getItem("chatstorySessionId");
+    if (!sessionId || !nextTitle.trim()) return;
+    setTweaking(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/book", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, title: nextTitle.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not update title");
+      setBookTitle(data.title);
+      setTitleOptions(data.titleOptions || []);
+      if (data.pages) setPages(data.pages);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not update title");
+    } finally {
+      setTweaking(false);
+    }
+  }
 
   async function patch(body: Record<string, unknown>) {
     const sessionId = sessionStorage.getItem("chatstorySessionId");
@@ -226,6 +255,36 @@ export default function PreviewPage() {
       )}
       {!loading && pages.length > 0 && (
         <>
+          {titleOptions.length > 0 ? (
+            <div className="mb-8">
+              <p className="font-[family-name:var(--font-dm)] text-xs uppercase tracking-[0.18em] text-[var(--accent)]">
+                Book title
+              </p>
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                Pick one inspired by your chat, or keep the current cover title.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {titleOptions.map((opt) => {
+                  const selected = opt === bookTitle;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      disabled={tweaking}
+                      onClick={() => void chooseTitle(opt)}
+                      className={`cursor-pointer rounded-full border px-4 py-2 text-sm transition ${
+                        selected
+                          ? "border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--ink)]"
+                          : "border-[var(--rule)] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--ink)]"
+                      } disabled:opacity-50`}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
           <BookViewer
             pages={pages}
             templateId={templateId}

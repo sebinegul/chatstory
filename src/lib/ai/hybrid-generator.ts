@@ -63,32 +63,49 @@ function normalizeTitle(t: string): string {
 async function freeTitlesAndDedication(
   input: GenerateBookInput,
   lang: DetectedLanguage,
+  chatSamples: string[],
 ): Promise<TitlePayload> {
   const relationship = input.relationship || "couple";
+  const people = peopleLabelForBook(relationship, input.personA, input.personB);
   const raw = await openRouterChat({
-    model: FREE_MODEL,
-    fallbacks: FREE_MODEL_CANDIDATES,
+    // Use story model first — free-title model alone was often rate-limited / generic
+    model: STORY_MODEL,
+    fallbacks: STORY_MODEL_CANDIDATES,
     maxAttempts: 3,
-    timeoutMs: 30_000,
+    timeoutMs: 35_000,
     json: true,
     system: buildTitleDedicationSystem({
       relationship,
       languageBlock: languagePromptBlock(lang),
     }),
-    user: `People: ${peopleLabelForBook(relationship, input.personA, input.personB)}
+    user: `People: ${people}
 Relationship type selected in UI: ${relationship}
 Detected chat language: ${lang.label}
-Suggest up to 5 short book titles and one soft dedication line that fits THIS relationship.
 ${relationship === "group" ? "This is a group chat chronicle — not a romance duo title." : ""}
+
+Real lines from their chat (ground the titles in THESE phrases, habits, jokes, or moods — not generic filler):
+${chatSamples.slice(0, 18).join("\n") || "(thin samples — still invent nothing factual)"}
+
+Suggest up to 5 short book titles (3–7 words) and one soft dedication line that fits THIS relationship and THESE samples.
+Titles must feel specific to this chat. Ban: Journey, Forever, Together, Always, Story, Our ChatStory.
 Write titles and dedication in ${lang.writeIn}.`,
-    temperature: 0.75,
+    temperature: 0.85,
   });
+  const banned =
+    /\b(journey|forever|together|always|story|our chatstory|chatstory)\b/i;
   const parsed = parseJsonFromModel<TitlePayload>(raw);
+  const titleOptions = (parsed.titleOptions || [])
+    .map((t) => noEmDash(String(t).trim()))
+    .filter((t) => t.length >= 3 && t.length <= 80)
+    .filter((t) => !banned.test(t))
+    .filter((t, i, arr) => {
+      const key = normalizeTitle(t);
+      return arr.findIndex((x) => normalizeTitle(x) === key) === i;
+    })
+    .slice(0, 5);
   return {
-    titleOptions: (parsed.titleOptions || [])
-      .slice(0, 5)
-      .map((t) => noEmDash(String(t))),
-    dedication: noEmDash(String(parsed.dedication || "")),
+    titleOptions,
+    dedication: noEmDash(String(parsed.dedication || "").trim()),
   };
 }
 
@@ -284,12 +301,28 @@ export async function generateBookWithModels(
       })
       .slice(0, MAX_AI_CHAPTERS);
 
-    // Free model: titles + dedication
+    const quoteSamples = pickQuotes(input.chat.messages, 8).map(
+      (q) => `${q.author}: ${q.text}`,
+    );
+    const early = input.chat.messages
+      .filter((m) => !m.deleted && isMeaningfulQuote(m.body))
+      .slice(0, 4)
+      .map((m) => `${m.author}: ${m.body}`);
+    const late = input.chat.messages
+      .filter((m) => !m.deleted && isMeaningfulQuote(m.body))
+      .slice(-4)
+      .map((m) => `${m.author}: ${m.body}`);
+    const chatSamples = [...new Set([...quoteSamples, ...early, ...late])].slice(
+      0,
+      18,
+    );
+
+    // Free/story model: titles + dedication grounded in chat samples
     let titleOptions: string[];
     let dedication: string;
     let aiTitle = false;
     try {
-      const free = await freeTitlesAndDedication(input, lang);
+      const free = await freeTitlesAndDedication(input, lang, chatSamples);
       const people = peopleLabelForBook(
         relationship as RelationshipId,
         input.personA,
@@ -306,8 +339,8 @@ export async function generateBookWithModels(
         (relationship === "group"
           ? `For ${people}, and every thread that kept the chat alive.`
           : `For ${input.personA} and ${input.personB}.`);
-      aiTitle = free.titleOptions.length >= 1 && Boolean(free.dedication);
-      if (!aiTitle) notes.push("Title model returned incomplete JSON");
+      aiTitle = free.titleOptions.length >= 1;
+      if (!free.dedication) notes.push("Dedication missing from title model");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       notes.push(`Title model failed: ${msg.slice(0, 160)}`);
