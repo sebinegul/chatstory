@@ -8,27 +8,24 @@ function cleanEnv(value: string | undefined): string {
   return (value || "").trim().replace(/^["']|["']$/g, "");
 }
 
-/** Prefer env, then OpenRouter's top free-router models (usage rankings Aug 2026). */
+/** Prefer env, then free models that currently answer on OpenRouter. */
 export const FREE_MODEL_CANDIDATES: string[] = Array.from(
   new Set(
     [
       cleanEnv(process.env.OPENROUTER_FREE_MODEL),
-      // Top free models used by Free Models Router
-      "openai/gpt-oss-120b:free",
-      "tencent/hy3:free",
+      // Verified working free endpoints (others like gpt-oss-120b:free / hy3:free often 404)
       "openai/gpt-oss-20b:free",
-      "nvidia/nemotron-3-nano-30b-a3b:free",
       "nvidia/nemotron-3-super-120b-a12b:free",
-      // Auto-router + light backups if a specific free endpoint is down
+      "nvidia/nemotron-3-nano-30b-a3b:free",
+      "google/gemma-4-26b-a4b-it:free",
       "openrouter/free",
       "google/gemma-4-31b-it:free",
-      "google/gemma-4-26b-a4b-it:free",
     ].filter(Boolean),
   ),
 );
 
 export const FREE_MODEL =
-  FREE_MODEL_CANDIDATES[0] || "openai/gpt-oss-120b:free";
+  FREE_MODEL_CANDIDATES[0] || "openai/gpt-oss-20b:free";
 
 export const STORY_MODEL =
   cleanEnv(process.env.OPENROUTER_STORY_MODEL) || FREE_MODEL;

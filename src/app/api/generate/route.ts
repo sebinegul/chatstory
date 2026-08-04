@@ -118,7 +118,11 @@ export async function POST(req: NextRequest) {
       data: { status: "preview", previewCount: { increment: 1 } },
     });
 
-    return NextResponse.json({ ok: true, title: book.title });
+    return NextResponse.json({
+      ok: true,
+      title: book.title,
+      generation: rawBook.generation || null,
+    });
   } catch (err) {
     console.error(err);
     const msg = err instanceof Error ? err.message : String(err);

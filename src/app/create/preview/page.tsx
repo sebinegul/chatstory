@@ -34,6 +34,7 @@ export default function PreviewPage() {
   const [mediaBusy, setMediaBusy] = useState(false);
   const [mediaNote, setMediaNote] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
+  const [aiNote, setAiNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const sessionId = sessionStorage.getItem("chatstorySessionId");
@@ -44,6 +45,32 @@ export default function PreviewPage() {
     setLoading(true);
     setError(null);
     try {
+      const rawGen = sessionStorage.getItem("chatstoryGeneration");
+      if (rawGen) {
+        try {
+          const g = JSON.parse(rawGen) as {
+            usedAi?: boolean;
+            aiChapters?: number;
+            chapterCount?: number;
+            aiTitle?: boolean;
+            notes?: string[];
+            storyModel?: string;
+          };
+          if (!g.usedAi) {
+            setAiNote(
+              `Story used template fallback (AI wrote 0 chapters). Model: ${g.storyModel || "unknown"}. ${(g.notes || []).join(" ")}`.trim(),
+            );
+          } else {
+            setAiNote(
+              `AI wrote ${g.aiChapters ?? "?"}/${g.chapterCount ?? "?"} chapters${g.aiTitle ? " + title" : ""}.`,
+            );
+          }
+        } catch {
+          setAiNote(null);
+        }
+      } else {
+        setAiNote(null);
+      }
       const res = await fetch(
         `/api/book?sessionId=${encodeURIComponent(sessionId)}`,
       );
@@ -186,6 +213,17 @@ export default function PreviewPage() {
         </p>
       )}
       {error && <p className="mb-4 text-sm text-[var(--danger)]">{error}</p>}
+      {aiNote && (
+        <p
+          className={`mb-4 text-sm ${
+            aiNote.startsWith("Story used template")
+              ? "text-[var(--danger)]"
+              : "text-[var(--muted)]"
+          }`}
+        >
+          {aiNote}
+        </p>
+      )}
       {!loading && pages.length > 0 && (
         <>
           <BookViewer

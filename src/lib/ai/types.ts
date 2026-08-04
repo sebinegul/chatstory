@@ -56,6 +56,16 @@ export interface GeneratedBook {
   titleOptions: string[];
   dedication: string;
   pages: BookPageModel[];
+  /** Present on live generates — tells UI whether OpenRouter actually wrote text. */
+  generation?: {
+    hasOpenRouterKey: boolean;
+    storyModel: string;
+    aiTitle: boolean;
+    aiChapters: number;
+    chapterCount: number;
+    usedAi: boolean;
+    notes: string[];
+  };
 }
 
 export interface GenerateBookInput {

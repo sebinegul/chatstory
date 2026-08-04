@@ -39,6 +39,15 @@ export default function GeneratingPage() {
         if (!res.ok) throw new Error(data.error || "Generation failed");
         if (cancelled) return;
 
+        if (data.generation) {
+          sessionStorage.setItem(
+            "chatstoryGeneration",
+            JSON.stringify(data.generation),
+          );
+        } else {
+          sessionStorage.removeItem("chatstoryGeneration");
+        }
+
         const elapsed = Date.now() - startedAt.current;
         const waitMore = Math.max(0, MIN_DISPLAY_MS - elapsed);
 

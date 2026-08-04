@@ -223,8 +223,22 @@ function assignNarrations(
 export async function generateBookWithModels(
   input: GenerateBookInput,
 ): Promise<GeneratedBook> {
+  const notes: string[] = [];
   if (!hasOpenRouterKey()) {
-    return mockGenerateBook(input);
+    notes.push("OPENROUTER_API_KEY missing — template voice only");
+    const mock = await mockGenerateBook(input);
+    return {
+      ...mock,
+      generation: {
+        hasOpenRouterKey: false,
+        storyModel: STORY_MODEL,
+        aiTitle: false,
+        aiChapters: 0,
+        chapterCount: mock.pages.filter((p) => p.type === "chapter").length,
+        usedAi: false,
+        notes,
+      },
+    };
   }
 
   try {
@@ -273,6 +287,7 @@ export async function generateBookWithModels(
     // Free model: titles + dedication
     let titleOptions: string[];
     let dedication: string;
+    let aiTitle = false;
     try {
       const free = await freeTitlesAndDedication(input, lang);
       const people = peopleLabelForBook(
@@ -291,11 +306,16 @@ export async function generateBookWithModels(
         (relationship === "group"
           ? `For ${people}, and every thread that kept the chat alive.`
           : `For ${input.personA} and ${input.personB}.`);
+      aiTitle = free.titleOptions.length >= 1 && Boolean(free.dedication);
+      if (!aiTitle) notes.push("Title model returned incomplete JSON");
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      notes.push(`Title model failed: ${msg.slice(0, 160)}`);
       console.warn("Free model failed, using mock titles", err);
       const mock = await mockGenerateBook(input);
       titleOptions = mock.titleOptions;
       dedication = mock.dedication;
+      aiTitle = false;
     }
 
     // Story model: main narrations only
@@ -319,10 +339,15 @@ export async function generateBookWithModels(
       narrationByTitle = assigned.byTitle;
       aiHits = assigned.aiHits;
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      notes.push(`Story model failed: ${msg.slice(0, 160)}`);
       console.warn("Story model failed, falling back chapter narrations", err);
     }
 
     if (aiHits === 0 && prepared.length > 0) {
+      notes.push(
+        "Zero AI chapter narrations — template fallback voice used. Check model rate limits / OPENROUTER_STORY_MODEL.",
+      );
       console.warn(
         "[chatstory] zero AI narrations — PDF will use template fallback voice. Check OPENROUTER_API_KEY / OPENROUTER_STORY_MODEL and Vercel logs.",
       );
@@ -422,10 +447,37 @@ export async function generateBookWithModels(
     pages.push({ type: "timeline", events: timeline });
 
     console.info(`[chatstory] language=${lang.code} (${lang.label}) relationship=${relationship}`);
-    return { title, titleOptions, dedication, pages };
+    return {
+      title,
+      titleOptions,
+      dedication,
+      pages,
+      generation: {
+        hasOpenRouterKey: true,
+        storyModel: STORY_MODEL,
+        aiTitle,
+        aiChapters: aiHits,
+        chapterCount: pages.filter((p) => p.type === "chapter").length,
+        usedAi: aiTitle || aiHits > 0,
+        notes,
+      },
+    };
   } catch (err) {
     console.error("OpenRouter generation failed, using mock", err);
-    return mockGenerateBook(input);
+    const msg = err instanceof Error ? err.message : String(err);
+    const mock = await mockGenerateBook(input);
+    return {
+      ...mock,
+      generation: {
+        hasOpenRouterKey: hasOpenRouterKey(),
+        storyModel: STORY_MODEL,
+        aiTitle: false,
+        aiChapters: 0,
+        chapterCount: mock.pages.filter((p) => p.type === "chapter").length,
+        usedAi: false,
+        notes: [`Fatal generate error: ${msg.slice(0, 200)}`],
+      },
+    };
   }
 }
 
