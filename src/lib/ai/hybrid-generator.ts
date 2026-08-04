@@ -1,9 +1,6 @@
 import { computeStats } from "@/lib/scanner/stats";
 import { buildWindows } from "@/lib/scanner/windows";
-import {
-  relationshipStoryGuide,
-  relationshipVoice,
-} from "@/lib/relationships";
+import { peopleLabelForBook } from "@/lib/relationships";
 import { formatDayKeyDMY } from "@/lib/format-date";
 import {
   FREE_MODEL,
@@ -27,6 +24,10 @@ import {
   type DetectedLanguage,
 } from "./detect-language";
 import { humanizeNarration } from "./humanize";
+import {
+  buildChapterNarrationSystem,
+  buildTitleDedicationSystem,
+} from "./prompts";
 import type { BookPageModel, GenerateBookInput, GeneratedBook } from "./types";
 import type { RelationshipId } from "@/lib/relationships";
 
@@ -54,30 +55,25 @@ async function freeTitlesAndDedication(
   lang: DetectedLanguage,
 ): Promise<TitlePayload> {
   const relationship = input.relationship || "couple";
-  const voice = relationshipVoice(relationship);
-  const guide = relationshipStoryGuide(relationship);
   const raw = await openRouterChat({
     model: FREE_MODEL,
     fallbacks: FREE_MODEL_CANDIDATES,
-    system: `You name intimate keepsake books from real WhatsApp chats.
-Voice: ${voice}
-Relationship context: ${guide}
-${languagePromptBlock(lang)}
-The title should feel like a private dedication someone would emboss on a cover, not a blog headline.
-Rules: no em dashes, no cringe, no invented facts, no exclamation marks.
-Return JSON only:
-{"titleOptions":["...","...","..."],"dedication":"..."}`,
-    user: `People: ${input.personA} and ${input.personB}
-Relationship type: ${relationship}
+    system: buildTitleDedicationSystem({
+      relationship,
+      languageBlock: languagePromptBlock(lang),
+    }),
+    user: `People: ${peopleLabelForBook(relationship, input.personA, input.personB)}
+Relationship type selected in UI: ${relationship}
 Detected chat language: ${lang.label}
-Suggest 3 short book titles (3-6 words) and one soft dedication line that fits THIS relationship.
+Suggest up to 5 short book titles and one soft dedication line that fits THIS relationship.
+${relationship === "group" ? "This is a group chat chronicle — not a romance duo title." : ""}
 Write titles and dedication in ${lang.writeIn}.`,
     temperature: 0.75,
   });
   const parsed = parseJsonFromModel<TitlePayload>(raw);
   return {
     titleOptions: (parsed.titleOptions || [])
-      .slice(0, 3)
+      .slice(0, 5)
       .map((t) => noEmDash(String(t))),
     dedication: noEmDash(String(parsed.dedication || "")),
   };
@@ -89,43 +85,22 @@ async function storyNarrations(
   lang: DetectedLanguage,
 ): Promise<StoryPayload> {
   const relationship = input.relationship || "couple";
-  const voice = relationshipVoice(relationship);
-  const guide = relationshipStoryGuide(relationship);
   const BATCH = 4;
   const merged: { title: string; narration: string }[] = [];
+  const system = buildChapterNarrationSystem({
+    relationship,
+    languageBlock: languagePromptBlock(lang),
+    writeIn: lang.writeIn,
+  });
 
   for (let i = 0; i < chapters.length; i += BATCH) {
     const batch = chapters.slice(i, i + BATCH);
     const raw = await openRouterChat({
       model: STORY_MODEL,
       fallbacks: STORY_MODEL_CANDIDATES,
-      system: `You write intimate chapter openings for a printed keepsake made from a real WhatsApp chat.
-
-This is not a summary. It is the soft voice between the quotes — grounded only in the sample lines.
-
-Voice: ${voice}
-RELATIONSHIP (must follow): ${guide}
-${languagePromptBlock(lang)}
-
-Write like a thoughtful human friend, not a novelist. 3–5 short sentences.
-Plain words. Specific, emotionally true to the samples.
-Each chapter must feel different because the samples are different.
-
-Hard rules:
-- No em dashes
-- Never invent quotes, dates, events, or feelings the samples do not support
-- Ground at least two sentences in concrete sample details (phrase, time, joke, habit, silence)
-- Do not repeat the upcoming quotes verbatim
-- When samples are thin, write less — 2–3 careful sentences
-- Banned phrases: journey, tapestry, delve, testament, cherished, whirlwind, soulmate (unless they said it), "ordinary care", "something settles", "the soft voice", forever etched
-- Do NOT force a celebrate-word theme
-- Prefer warmth over drama. Prefer specificity over adjectives
-- Match the relationship type exactly (friends stay friends; couples stay partners)
-
-Return JSON only: {"chapters":[{"title":"...","narration":"..."}]}
-Use each chapter title EXACTLY as given. Return one object per chapter, in the same order.
-Narration language: ${lang.writeIn}.`,
+      system,
       user: JSON.stringify({
+        people: peopleLabelForBook(relationship, input.personA, input.personB),
         personA: input.personA,
         personB: input.personB,
         relationship,
@@ -186,13 +161,22 @@ export async function generateBookWithModels(
     let dedication: string;
     try {
       const free = await freeTitlesAndDedication(input, lang);
+      const people = peopleLabelForBook(
+        relationship as RelationshipId,
+        input.personA,
+        input.personB,
+      );
       titleOptions =
         free.titleOptions.length >= 1
           ? free.titleOptions
-          : [`${input.personA} & ${input.personB}`];
+          : relationship === "group"
+            ? [people]
+            : [`${input.personA} & ${input.personB}`];
       dedication =
         free.dedication ||
-        `For ${input.personA} and ${input.personB}.`;
+        (relationship === "group"
+          ? `For ${people}, and every thread that kept the chat alive.`
+          : `For ${input.personA} and ${input.personB}.`);
     } catch (err) {
       console.warn("Free model failed, using mock titles", err);
       const mock = await mockGenerateBook(input);

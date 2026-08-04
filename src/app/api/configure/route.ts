@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionOrThrow } from "@/lib/session";
 import { isTemplateId, normalizeTemplateId } from "@/lib/templates/registry";
-import { isRelationshipId } from "@/lib/relationships";
+import {
+  GROUP_PARTICIPANT_CAP,
+  isRelationshipId,
+  parseGroupCast,
+} from "@/lib/relationships";
 import type { ExtraBookImage, ImagePlacement } from "@/lib/media";
 
 const PLACEMENTS = new Set<ImagePlacement>([
@@ -66,6 +70,21 @@ export async function POST(req: NextRequest) {
     }
     if (!isRelationshipId(String(relationship))) {
       return NextResponse.json({ error: "Choose a relationship type." }, { status: 400 });
+    }
+    if (relationship === "group") {
+      const cast = parseGroupCast(String(personA), String(personB));
+      if (cast.length < 3) {
+        return NextResponse.json(
+          { error: "Group chat needs at least 3 names." },
+          { status: 400 },
+        );
+      }
+      if (cast.length > GROUP_PARTICIPANT_CAP) {
+        return NextResponse.json(
+          { error: `Group chat supports up to ${GROUP_PARTICIPANT_CAP} names.` },
+          { status: 400 },
+        );
+      }
     }
     if (!aiChooses && Array.isArray(chapters) && chapters.length > 15) {
       return NextResponse.json({ error: "Maximum 15 chapters." }, { status: 400 });

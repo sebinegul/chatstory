@@ -13,6 +13,8 @@ type Stats = {
   longestSilenceDays: number;
   mostActiveDay: string;
   participants: string[];
+  topParticipants?: { name: string; count: number }[];
+  suggestedRelationship?: string;
 };
 
 export default function StatsPage() {
@@ -42,6 +44,18 @@ export default function StatsPage() {
           "chatstoryParticipants",
           JSON.stringify(data.participants || []),
         );
+        sessionStorage.setItem(
+          "chatstoryTopParticipants",
+          JSON.stringify(data.topParticipants || []),
+        );
+        if (data.suggestedRelationship) {
+          sessionStorage.setItem(
+            "chatstorySuggestedRelationship",
+            String(data.suggestedRelationship),
+          );
+        } else {
+          sessionStorage.removeItem("chatstorySuggestedRelationship");
+        }
       } catch {
         setError("Could not load stats");
       } finally {

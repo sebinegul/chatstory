@@ -5,7 +5,11 @@ import {
   FREE_MODEL_CANDIDATES,
   openRouterChat,
 } from "./openrouter";
-import { relationshipStoryGuide, type RelationshipId } from "@/lib/relationships";
+import {
+  peopleLabelForBook,
+  type RelationshipId,
+} from "@/lib/relationships";
+import { buildHumanizeSystem } from "./prompts";
 
 /** Soften AI sludge into short, human-sounding prose. */
 export async function humanizeNarration(
@@ -19,27 +23,23 @@ export async function humanizeNarration(
 ): Promise<string> {
   const trimmed = text.trim();
   if (!trimmed) return trimmed;
+  const people = peopleLabelForBook(
+    opts.relationship,
+    opts.personA,
+    opts.personB,
+  );
 
   try {
     const raw = await openRouterChat({
       model: FREE_MODEL,
       fallbacks: FREE_MODEL_CANDIDATES,
       temperature: 0.55,
-      system: `You rewrite keepsake book narration so it sounds like a careful human wrote it — not an AI.
-
-Relationship guide: ${relationshipStoryGuide(opts.relationship)}
-${languagePromptBlock(opts.lang)}
-
-Rules:
-- Keep the same meaning and any concrete details from the original
-- Shorter sentences. Plain words. Warm, specific, a little imperfect
-- No em dashes
-- Ban: journey, tapestry, delve, testament, cherished, whirlwind, soulmate, ordinary care, "the soft voice", "something settles", forever, etched
-- Do not invent new facts
-- Do not add quotes
-- Output ONLY the rewritten narration, no labels`,
-      user: `People: ${opts.personA} and ${opts.personB}
-Relationship: ${opts.relationship}
+      system: buildHumanizeSystem({
+        relationship: opts.relationship,
+        languageBlock: languagePromptBlock(opts.lang),
+      }),
+      user: `People: ${people}
+Relationship selected in UI: ${opts.relationship}
 Language: ${opts.lang.writeIn}
 
 Rewrite this narration:

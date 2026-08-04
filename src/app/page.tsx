@@ -10,7 +10,7 @@ import { TEMPLATES } from "@/lib/templates/registry";
 const STEPS = [
   {
     t: "Upload",
-    d: "Export the chat as a .txt without media, then drop it in.",
+    d: "Export without media as .txt or .zip, then drop it in.",
   },
   {
     t: "Shape",

@@ -7,8 +7,11 @@ import { serializeChat } from "@/lib/parser/serialize";
 import { createSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { hashIp } from "@/lib/ip";
-
-const MAX_BYTES = 10 * 1024 * 1024;
+import {
+  extractChatTxtFromZip,
+  MAX_UPLOAD_BYTES,
+  SafeZipError,
+} from "@/lib/upload/safe-zip-txt";
 
 function clientIp(req: NextRequest): string {
   return (
@@ -16,6 +19,22 @@ function clientIp(req: NextRequest): string {
     req.headers.get("x-real-ip") ||
     "127.0.0.1"
   );
+}
+
+function isZipUpload(file: File, name: string): boolean {
+  if (name.endsWith(".zip")) return true;
+  const type = (file.type || "").toLowerCase();
+  return (
+    type === "application/zip" ||
+    type === "application/x-zip-compressed" ||
+    type === "multipart/x-zip"
+  );
+}
+
+function isTxtUpload(file: File, name: string): boolean {
+  if (name.endsWith(".txt")) return true;
+  const type = (file.type || "").toLowerCase();
+  return type.startsWith("text/") || type === "application/octet-stream";
 }
 
 export async function POST(req: NextRequest) {
@@ -36,23 +55,27 @@ export async function POST(req: NextRequest) {
 
     if (!(file instanceof File)) {
       return NextResponse.json(
-        { error: "Upload a WhatsApp .txt file.", code: "NO_FILE" },
+        { error: "Upload a WhatsApp .txt or .zip file.", code: "NO_FILE" },
         { status: 400 },
       );
     }
 
     const name = (file.name || "").toLowerCase();
-    if (name && !name.endsWith(".txt") && file.type && !file.type.includes("text")) {
+    const zip = isZipUpload(file, name);
+    const txt = isTxtUpload(file, name);
+
+    if (!zip && !txt) {
       return NextResponse.json(
         {
-          error: "Please upload the .txt chat export (not a zip or PDF).",
+          error:
+            "Please upload a WhatsApp .txt or .zip export (without media).",
           code: "BAD_TYPE",
         },
         { status: 400 },
       );
     }
 
-    if (file.size > MAX_BYTES) {
+    if (file.size > MAX_UPLOAD_BYTES) {
       return NextResponse.json(
         { error: "File is too large. Max size is 10 MB.", code: "TOO_LARGE" },
         { status: 400 },
@@ -66,7 +89,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const text = await file.text();
+    const buffer = new Uint8Array(await file.arrayBuffer());
+    let text: string;
+    let storedName = file.name || (zip ? "chat.zip" : "chat.txt");
+
+    if (zip) {
+      try {
+        const extracted = await extractChatTxtFromZip(buffer);
+        text = extracted.text;
+        storedName = extracted.sourceName;
+      } catch (err) {
+        if (err instanceof SafeZipError) {
+          return NextResponse.json(
+            { error: err.message, code: err.code },
+            { status: 400 },
+          );
+        }
+        throw err;
+      }
+    } else {
+      text = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+    }
+
     if (!text.trim()) {
       return NextResponse.json(
         { error: "That file has no text content.", code: "EMPTY_TEXT" },
@@ -78,7 +122,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "This does not look like a WhatsApp chat export. In WhatsApp: Chat info → Export chat → Without media → save the .txt file.",
+            "This does not look like a WhatsApp chat export. In WhatsApp: Chat info → Export chat → Without media → upload the .txt or .zip.",
           code: "NOT_WHATSAPP",
         },
         { status: 400 },
@@ -104,7 +148,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "No messages found. Android exports look like: 3/2/26, 9:49 pm - Name: hi. iPhone exports use [brackets]. Export Without media as .txt.",
+            "No messages found. Android exports look like: 3/2/26, 9:49 pm - Name: hi. iPhone exports use [brackets]. Export Without media as .txt or .zip.",
           code: "NO_MESSAGES",
         },
         { status: 400 },
@@ -117,7 +161,7 @@ export async function POST(req: NextRequest) {
     await prisma.chatUpload.create({
       data: {
         sessionId: session.id,
-        filename: file.name || "chat.txt",
+        filename: storedName,
         byteSize: file.size,
         parsedJson: serializeChat(chat),
       },

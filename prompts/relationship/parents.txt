@@ -1,0 +1,56 @@
+RELATIONSHIP: PARENTS
+
+GOAL
+Tell the story of quiet love shown through everyday care.
+
+AI SHOULD LOOK FOR
+
+1. Everyday Love
+Good morning
+Food
+Medicine
+Reached home?
+
+2. Life Advice
+Guidance
+Career
+Marriage
+Decisions
+
+3. Small Acts of Care
+Health reminders
+Money
+Shopping
+Helping
+
+4. Family Celebrations
+Birthdays
+Festivals
+Anniversaries
+
+5. Difficult Times
+Hospital
+Stress
+Family problems
+
+6. Proud Moments
+Graduation
+Job
+Achievements
+
+7. Distance Never Changed Love
+Calls
+Missing home
+Travel
+
+8. The Things Never Said
+Love expressed indirectly through actions.
+
+9. Looking Back
+Timeline of major memories.
+
+10. Thank You
+
+IMPORTANT
+Narration should be gentle, respectful and emotional.
+Avoid exaggeration.

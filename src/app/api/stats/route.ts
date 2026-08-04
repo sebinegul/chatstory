@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSessionOrThrow } from "@/lib/session";
 import { deserializeChat } from "@/lib/parser/serialize";
 import { computeStats } from "@/lib/scanner/stats";
+import { rankParticipantsByActivity } from "@/lib/relationships";
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,19 +20,22 @@ export async function GET(req: NextRequest) {
     }
 
     const chat = deserializeChat(upload.parsedJson);
-    // Empty string means "auto-detect top keyword"
     const keyword =
       keywordParam === null || keywordParam === undefined
         ? undefined
         : keywordParam;
 
     const stats = computeStats(chat, keyword || undefined);
+    const topParticipants = rankParticipantsByActivity(chat.messages);
 
     return NextResponse.json({
       ...stats,
       firstAt: stats.firstAt.toISOString(),
       lastAt: stats.lastAt.toISOString(),
       participants: chat.participants,
+      topParticipants,
+      suggestedRelationship:
+        chat.participants.length >= 3 ? "group" : undefined,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Stats failed";

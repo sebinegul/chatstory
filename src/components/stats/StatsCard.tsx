@@ -11,10 +11,17 @@ export function StatsCard({
     lastAt: string;
     longestSilenceDays: number;
     mostActiveDay: string;
+    participants?: string[];
+    suggestedRelationship?: string;
   };
 }) {
+  const participantCount = stats.participants?.length ?? 0;
   const items = [
     { label: "Messages", value: stats.totalMessages.toLocaleString("en-IN") },
+    {
+      label: "People in the chat",
+      value: participantCount > 0 ? String(participantCount) : "-",
+    },
     {
       label: "First message",
       value: formatDateDMY(stats.firstAt),
@@ -32,6 +39,12 @@ export function StatsCard({
       <p className="font-[family-name:var(--font-space)] text-sm font-medium text-[var(--accent)]">
         Your chat in numbers
       </p>
+      {stats.suggestedRelationship === "group" ? (
+        <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">
+          Looks like a group chat. Next step we&apos;ll prefill the top talkers
+          so the story can cover the whole cast.
+        </p>
+      ) : null}
       <div className="mt-6 grid gap-6 sm:grid-cols-2">
         {items.map((item) => (
           <div key={item.label}>

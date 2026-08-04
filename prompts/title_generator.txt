@@ -1,0 +1,29 @@
+Generate 5 book titles.
+
+Titles should be poetic.
+
+Avoid generic words like:
+
+Journey
+
+Forever
+
+Together
+
+Always
+
+Story
+
+Prefer titles inspired by the conversations.
+
+Examples:
+
+The Days We Never Counted
+
+Between Good Morning and Good Night
+
+Somewhere Between the Messages
+
+What We Kept Saying
+
+The Little Things We Never Forgot

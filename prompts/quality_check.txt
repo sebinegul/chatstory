@@ -1,0 +1,23 @@
+Reject the chapter if:
+
+It repeats another chapter.
+
+It invents facts.
+
+It invents conversations.
+
+It sounds generic.
+
+It uses clichés.
+
+It contains AI phrases.
+
+It contains unsupported assumptions.
+
+It summarizes instead of narrating.
+
+It has fewer than two meaningful quotes.
+
+If any rule fails,
+
+rewrite the chapter.

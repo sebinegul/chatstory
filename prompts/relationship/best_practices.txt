@@ -1,0 +1,29 @@
+GENERAL AI RULES
+
+The AI must NOT simply summarize the chat.
+
+Instead it should identify STORY ARCS.
+
+For every chapter:
+
+1. Search the entire chat.
+2. Collect 10-100 relevant messages.
+3. Score them based on:
+   - emotion
+   - uniqueness
+   - conversation length
+   - replies
+   - emoji density
+   - milestones
+4. Choose only the strongest moments.
+5. Write narration around REAL messages.
+6. Never invent facts.
+7. Never force chronology.
+8. Skip chapters with weak evidence.
+9. Prefer quality over quantity.
+10. Every chapter should answer:
+   "Why does this memory matter?"
+
+Narration should connect memories instead of describing every message.
+
+The book should read like a memoir, not a WhatsApp export.

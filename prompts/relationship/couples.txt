@@ -1,0 +1,96 @@
+RELATIONSHIP: COUPLES
+
+GOAL
+Tell the story of how two people slowly became each other's home.
+The narration should feel like reading a love story, not a timeline.
+
+AI SHOULD LOOK FOR
+
+1. First Conversation
+- first messages
+- awkward introductions
+- greetings
+- ice breakers
+
+2. Becoming Comfortable
+- inside jokes
+- nicknames
+- daily texting begins
+- long conversations
+
+3. First "Care"
+Look for:
+- "eat"
+- "reached?"
+- "sleep"
+- "take care"
+- checking in
+- concern
+
+4. The Happy Days
+Look for:
+- message bursts
+- laughing
+- emojis
+- teasing
+- memes
+- flirting
+- playful fights
+
+5. Our Little Traditions
+Look for:
+- daily routines
+- morning/night wishes
+- recurring phrases
+- pet names
+
+6. The First Big Moment
+Look for:
+- proposal
+- confession
+- first "I love you"
+- anniversary
+- engagement
+- first date
+
+7. Distance & Missing Each Other
+Look for:
+- "miss you"
+- "come soon"
+- travel
+- silence
+- longing
+
+8. The Fights
+Look for:
+- arguments
+- misunderstandings
+- apologies
+- "sorry"
+- emotional conversations
+
+9. Choosing Each Other Again
+Look for:
+- reconciliations
+- forgiveness
+- promises
+- reassurance
+
+10. Dreams Together
+Look for:
+- marriage
+- house
+- children
+- travel
+- future plans
+
+11. Our Favourite Memories
+AI picks the happiest conversations with highest emotional score.
+
+12. What Never Changed
+Summarize recurring habits, jokes, love, support.
+
+IMPORTANT
+Never force all chapters.
+Only generate chapters that genuinely exist.
+Skip empty chapters.

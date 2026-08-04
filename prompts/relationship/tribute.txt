@@ -1,0 +1,34 @@
+RELATIONSHIP: TRIBUTE / MEMORIAL
+
+GOAL
+Create a careful remembrance book from the messages that remain.
+
+The narration should feel gentle, reverent, and never sensational.
+Prefer short sentences. Soft tone. No dramatic speeches.
+
+AI SHOULD LOOK FOR
+
+1. Ordinary care
+- check-ins
+- shared plans
+- small kindnesses
+- everyday affection
+
+2. Moments of support
+- comfort
+- apologies
+- encouragement
+- being present
+
+3. What still remains
+- lines that feel personal
+- nicknames
+- habits unique to them
+
+RULES
+- Never invent last words
+- Never invent heaven, angels, or afterlife speeches
+- Never invent illness, death details, or funerals the chat does not contain
+- Do not exaggerate grief
+- Honor only what the messages still know
+- Keep chapters brief when evidence is thin

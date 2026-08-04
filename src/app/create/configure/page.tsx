@@ -6,17 +6,22 @@ import { StepShell } from "@/components/flow/StepShell";
 import { TemplatePicker } from "@/components/configure/TemplatePicker";
 import type { TemplateId } from "@/lib/templates/registry";
 import {
+  GROUP_PARTICIPANT_CAP,
   RELATIONSHIPS,
   type RelationshipId,
 } from "@/lib/relationships";
 
 type SpecialDate = { label: string; date: string };
 type ChapterDraft = { title: string; startAt: string; endAt: string };
+type TopParticipant = { name: string; count: number };
 
 export default function ConfigurePage() {
   const router = useRouter();
   const [personA, setPersonA] = useState("");
   const [personB, setPersonB] = useState("");
+  const [groupNames, setGroupNames] = useState<string[]>(
+    Array.from({ length: GROUP_PARTICIPANT_CAP }, () => ""),
+  );
   const [relationship, setRelationship] = useState<RelationshipId>("couple");
   const [aiChooses, setAiChooses] = useState(true);
   const [templateId, setTemplateId] = useState<TemplateId>("elegant-gold");
@@ -28,14 +33,51 @@ export default function ConfigurePage() {
   ]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const isGroup = relationship === "group";
 
   useEffect(() => {
-    const raw = sessionStorage.getItem("chatstoryParticipants");
-    if (!raw) return;
+    const rawTop = sessionStorage.getItem("chatstoryTopParticipants");
+    const rawParts = sessionStorage.getItem("chatstoryParticipants");
+    const suggested = sessionStorage.getItem("chatstorySuggestedRelationship");
+
+    let top: TopParticipant[] = [];
     try {
-      const parts = JSON.parse(raw) as string[];
+      if (rawTop) top = JSON.parse(rawTop) as TopParticipant[];
+    } catch {
+      top = [];
+    }
+
+    if (suggested === "group" || top.length >= 3) {
+      setRelationship("group");
+    }
+
+    if (top.length > 0) {
+      const names = top.map((t) => t.name).slice(0, GROUP_PARTICIPANT_CAP);
+      setGroupNames((prev) => {
+        const next = [...prev];
+        names.forEach((n, i) => {
+          next[i] = n;
+        });
+        return next;
+      });
+      setPersonA(names[0] || "");
+      setPersonB(names[1] || "");
+      return;
+    }
+
+    if (!rawParts) return;
+    try {
+      const parts = JSON.parse(rawParts) as string[];
+      if (parts.length >= 3) setRelationship("group");
       if (parts[0]) setPersonA(parts[0]);
       if (parts[1]) setPersonB(parts[1]);
+      setGroupNames((prev) => {
+        const next = [...prev];
+        parts.slice(0, GROUP_PARTICIPANT_CAP).forEach((n, i) => {
+          next[i] = n;
+        });
+        return next;
+      });
     } catch {
       /* ignore */
     }
@@ -48,10 +90,22 @@ export default function ConfigurePage() {
       router.replace("/create/upload");
       return;
     }
-    if (!personA.trim() || !personB.trim()) {
+
+    let a = personA.trim();
+    let b = personB.trim();
+    if (isGroup) {
+      const cast = groupNames.map((n) => n.trim()).filter(Boolean);
+      if (cast.length < 3) {
+        setError("Group chat needs at least 3 names (top talkers are prefilled).");
+        return;
+      }
+      a = cast.join(", ");
+      b = "the group";
+    } else if (!a || !b) {
       setError("Enter both names.");
       return;
     }
+
     setBusy(true);
     try {
       const res = await fetch("/api/configure", {
@@ -59,8 +113,8 @@ export default function ConfigurePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId,
-          personA: personA.trim(),
-          personB: personB.trim(),
+          personA: a,
+          personB: b,
           relationship,
           specialDates: specialDates.filter((d) => d.date && d.label),
           chapters: aiChooses
@@ -91,27 +145,8 @@ export default function ConfigurePage() {
 
   return (
     <StepShell step={3} title="Shape your book">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="block text-sm">
-          <span className="text-[var(--muted)]">Person one</span>
-          <input
-            value={personA}
-            onChange={(e) => setPersonA(e.target.value)}
-            className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-[var(--surface)] px-3 py-2"
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="text-[var(--muted)]">Person two</span>
-          <input
-            value={personB}
-            onChange={(e) => setPersonB(e.target.value)}
-            className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-[var(--surface)] px-3 py-2"
-          />
-        </label>
-      </div>
-
-      <label className="mt-8 block text-sm">
-        <span className="text-[var(--muted)]">What is this relationship?</span>
+      <label className="block text-sm">
+        <span className="text-[var(--muted)]">What is this chat?</span>
         <select
           value={relationship}
           onChange={(e) => setRelationship(e.target.value as RelationshipId)}
@@ -127,6 +162,51 @@ export default function ConfigurePage() {
           {RELATIONSHIPS.find((r) => r.id === relationship)?.blurb}
         </span>
       </label>
+
+      {isGroup ? (
+        <div className="mt-8">
+          <p className="text-sm text-[var(--muted)]">
+            Top talkers (up to {GROUP_PARTICIPANT_CAP}). Edit names if you want —
+            the story will use this cast.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {groupNames.map((name, i) => (
+              <label key={i} className="block text-sm">
+                <span className="text-[var(--muted)]">Person {i + 1}</span>
+                <input
+                  value={name}
+                  onChange={(e) => {
+                    const next = [...groupNames];
+                    next[i] = e.target.value;
+                    setGroupNames(next);
+                  }}
+                  className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-[var(--surface)] px-3 py-2"
+                  placeholder={i < 3 ? "Required" : "Optional"}
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm">
+            <span className="text-[var(--muted)]">Person one</span>
+            <input
+              value={personA}
+              onChange={(e) => setPersonA(e.target.value)}
+              className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-[var(--surface)] px-3 py-2"
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="text-[var(--muted)]">Person two</span>
+            <input
+              value={personB}
+              onChange={(e) => setPersonB(e.target.value)}
+              className="mt-1 w-full rounded-sm border border-[var(--rule)] bg-[var(--surface)] px-3 py-2"
+            />
+          </label>
+        </div>
+      )}
 
       <div className="mt-8">
         <p className="text-sm text-[var(--muted)]">Special dates (scanned ±2 days)</p>

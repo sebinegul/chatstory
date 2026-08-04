@@ -16,7 +16,7 @@ export default function UploadPage() {
   async function submit() {
     setError(null);
     if (!file) {
-      setError("Choose a WhatsApp .txt export first.");
+      setError("Choose a WhatsApp .txt or .zip export first.");
       return;
     }
     if (!accepted) {

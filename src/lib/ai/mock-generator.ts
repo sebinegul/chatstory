@@ -5,7 +5,10 @@ import {
   type ChapterIdea,
 } from "@/lib/scanner/windows";
 import type { ParsedMessage } from "@/lib/parser/types";
-import type { RelationshipId } from "@/lib/relationships";
+import {
+  peopleLabelForBook,
+  type RelationshipId,
+} from "@/lib/relationships";
 import { formatDayKeyDMY } from "@/lib/format-date";
 import type {
   BookPageModel,
@@ -119,12 +122,12 @@ export function narrationForChapter(opts: {
     messageCount,
     chapterIndex,
   } = opts;
-  const names = `${personA} and ${personB}`;
+  const names = peopleLabelForBook(relationship, personA, personB);
   const q0 = quotes[0];
   const q1 = quotes[1];
   const thin = messageCount < 5;
   const when = hourHint(q0?.at);
-  const who = q0?.author || personA;
+  const who = q0?.author || personA.split(",")[0]?.trim() || personA;
   const line = q0 ? clip(q0.text, 88) : "";
   const second = q1 ? clip(q1.text, 64) : "";
   const countBit =
@@ -140,6 +143,20 @@ export function narrationForChapter(opts: {
     `${title} is not a speech. It is a pile of small returns.`,
   ];
   const open = openings[chapterIndex % openings.length];
+
+  if (relationship === "group") {
+    if (thin) {
+      return noEmDash(
+        `${open} The group goes quiet for a stretch. ${names} still leave a few lines. ${line ? `${who} said "${line}".` : "Even the thin days belong."} A group chat is rarely one mood for long.`,
+      );
+    }
+    const variants = [
+      `${open} This chapter belongs to the whole thread — banter, plans, and whoever jumped in. ${line ? `${who}${when ? ` ${when}` : ""} typed "${line}".` : ""} ${second ? `Then another voice: "${second}".` : ""} ${countBit} The quotes below stay theirs.`,
+      `${open} Among ${names}, the chat piles on: jokes, arguments, check-ins, nothing polished. ${line ? `Listen to ${who}: "${line}".` : ""} ${countBit} Nothing here is invented from off-thread drama.`,
+      `${open} ${names} keep the group alive without announcing it. ${line ? `One line from ${who} stays: "${line}".` : ""} ${second ? `Someone else answers: "${second}".` : ""} ${countBit}`,
+    ];
+    return noEmDash(variants[chapterIndex % variants.length]);
+  }
 
   if (relationship === "tribute") {
     return noEmDash(
@@ -231,9 +248,14 @@ export async function generateBook(
   const windows = buildWindows(input.chat, input.specialDates);
   const stats = computeStats(chat, undefined);
 
+  const people = peopleLabelForBook(relationship, personA, personB);
   const titleOptions = [
-    `${personA} & ${personB}`,
-    relationship === "tribute" ? `In Memory` : `A Story in Messages`,
+    relationship === "group" ? people : `${personA} & ${personB}`,
+    relationship === "tribute"
+      ? `In Memory`
+      : relationship === "group"
+        ? `The Group Chat`
+        : `A Story in Messages`,
     `Our ChatStory`,
   ].map(noEmDash);
 
@@ -241,11 +263,13 @@ export async function generateBook(
   const dedication = noEmDash(
     relationship === "tribute"
       ? `For ${personA} and ${personB}, and the messages that remain.`
-      : relationship === "friends"
-        ? `For ${personA} and ${personB}, and every ordinary check-in that meant stay.`
-        : relationship === "family" || relationship === "siblings"
-          ? `For ${personA} and ${personB}, and the care that never needed a speech.`
-          : `For ${personA} and ${personB}, and every ordinary night that became something more.`,
+      : relationship === "group"
+        ? `For ${people}, and every joke, plan, and fight the thread still remembers.`
+        : relationship === "friends"
+          ? `For ${personA} and ${personB}, and every ordinary check-in that meant stay.`
+          : relationship === "family" || relationship === "siblings"
+            ? `For ${personA} and ${personB}, and the care that never needed a speech.`
+            : `For ${personA} and ${personB}, and every ordinary night that became something more.`,
   );
 
   const pages: BookPageModel[] = [

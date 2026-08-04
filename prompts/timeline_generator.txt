@@ -1,0 +1,13 @@
+Generate a clean timeline.
+
+One line.
+
+Date
+
+Short event.
+
+No narration.
+
+No guessing.
+
+Only use verified events.

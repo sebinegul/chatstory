@@ -1,0 +1,212 @@
+RELATIONSHIP: GROUP
+
+GOAL
+
+Tell the story of a group of people who shared memories together.
+
+The book should feel like reliving the group's journey, capturing its
+energy, humor, milestones, and friendships.
+
+Avoid focusing on only one or two people unless they naturally dominate
+important events.
+
+The narration should celebrate the collective memories of the group.
+
+--------------------------------------------------------
+
+AI SHOULD LOOK FOR
+
+--------------------------------------------------------
+1. The Group Begins
+
+Look for:
+- earliest messages
+- welcome messages
+- group creation
+- introductions
+- first conversations
+
+Purpose:
+Introduce how the group came together.
+
+--------------------------------------------------------
+2. Finding Our Rhythm
+
+Look for:
+- regular chatting
+- increasing activity
+- everyone getting comfortable
+- recurring participants
+
+Purpose:
+Show how strangers became a community.
+
+--------------------------------------------------------
+3. Endless Conversations
+
+Look for:
+- longest conversations
+- late-night discussions
+- random topics
+- everyday chatting
+
+Purpose:
+Highlight how the group became part of daily life.
+
+--------------------------------------------------------
+4. Inside Jokes
+
+Look for:
+- repeated jokes
+- funny nicknames
+- memes
+- GIF discussions
+- emoji spam
+- recurring phrases
+
+Purpose:
+Capture the humor unique to the group.
+
+--------------------------------------------------------
+5. Celebrations
+
+Look for:
+- birthdays
+- anniversaries
+- congratulations
+- promotions
+- weddings
+- achievements
+- festivals
+
+Purpose:
+Celebrate happy milestones together.
+
+--------------------------------------------------------
+6. Adventures Together
+
+Look for:
+- trips
+- outings
+- meetups
+- college events
+- office parties
+- vacations
+- photos being shared
+- planning discussions
+
+Purpose:
+Tell the story of shared experiences beyond the chat.
+
+--------------------------------------------------------
+7. Helping Each Other
+
+Look for:
+- emotional support
+- advice
+- helping someone
+- career guidance
+- exam preparation
+- financial help
+- family support
+
+Purpose:
+Show the strength of the community.
+
+--------------------------------------------------------
+8. Big Moments
+
+Look for:
+- major announcements
+- engagements
+- babies
+- new jobs
+- graduations
+- moving abroad
+- important life updates
+
+Purpose:
+Highlight life-changing moments witnessed together.
+
+--------------------------------------------------------
+9. Quiet Days
+
+Look for:
+- long silence
+- inactive periods
+- group becoming quiet
+- return after months
+
+Purpose:
+Show that even quiet groups come alive again.
+
+--------------------------------------------------------
+10. The Group Never Changed
+
+Look for:
+- recent conversations
+- old jokes returning
+- same personalities
+- familiar conversations
+
+Purpose:
+Show that the bond still exists despite time.
+
+--------------------------------------------------------
+11. Our Favorite Moments
+
+AI should choose the strongest emotional and funniest conversations
+throughout the group's history.
+
+Do not simply choose the longest conversations.
+
+--------------------------------------------------------
+12. A Story Still Being Written
+
+End with an emotional closing about friendships, memories, and the
+journey continuing.
+
+--------------------------------------------------------
+
+AI SHOULD ANALYZE
+
+- Most active members
+- Message bursts
+- Longest conversations
+- Emoji usage
+- Shared laughter
+- Shared achievements
+- Trips
+- Celebrations
+- Arguments that were resolved
+- Polls and planning
+- Frequently used phrases
+- Recurring jokes
+- Group traditions
+- Message streaks
+- Long inactive periods
+- Most memorable days
+
+--------------------------------------------------------
+
+IMPORTANT RULES
+
+1. Never invent conversations.
+
+2. Never invent events.
+
+3. Every chapter must be supported by real messages.
+
+4. Skip chapters with weak evidence.
+
+5. Do not force all chapters.
+
+6. Focus on the group as a whole, not one individual.
+
+7. Humor should feel natural.
+
+8. Narration should connect memories instead of summarizing messages.
+
+9. Use verbatim quotes only.
+
+10. End every chapter with a feeling, not just a summary.

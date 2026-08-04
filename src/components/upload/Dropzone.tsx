@@ -2,6 +2,11 @@
 
 import { useCallback, useState } from "react";
 
+function isAllowedUpload(file: File): boolean {
+  const lower = file.name.toLowerCase();
+  return lower.endsWith(".txt") || lower.endsWith(".zip");
+}
+
 export function Dropzone({
   onFile,
   disabled,
@@ -11,10 +16,16 @@ export function Dropzone({
 }) {
   const [dragging, setDragging] = useState(false);
   const [name, setName] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
 
   const take = useCallback(
     (file: File | undefined) => {
       if (!file || disabled) return;
+      if (!isAllowedUpload(file)) {
+        setHint("Please choose a .txt or .zip WhatsApp export.");
+        return;
+      }
+      setHint(null);
       setName(file.name);
       onFile(file);
     },
@@ -41,17 +52,21 @@ export function Dropzone({
     >
       <input
         type="file"
-        accept=".txt,text/plain"
+        accept=".txt,.zip,text/plain,application/zip,application/x-zip-compressed"
         className="hidden"
         disabled={disabled}
         onChange={(e) => take(e.target.files?.[0])}
       />
       <p className="font-[family-name:var(--font-space)] text-xl font-medium text-[var(--ink)]">
-        {name ? name : "Drop your WhatsApp .txt here"}
+        {name ? name : "Drop your WhatsApp .txt or .zip"}
       </p>
       <p className="mt-2 max-w-sm text-sm text-[var(--muted)]">
-        Export chat without media. Max 10 MB.
+        Export chat without media. We pull the chat text out of the zip safely.
+        Max 10 MB.
       </p>
+      {hint ? (
+        <p className="mt-3 text-sm text-[var(--danger)]">{hint}</p>
+      ) : null}
     </label>
   );
 }

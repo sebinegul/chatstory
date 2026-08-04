@@ -1,0 +1,61 @@
+RELATIONSHIP: FRIENDS
+
+GOAL
+Capture the journey from strangers to lifelong friends.
+
+AI SHOULD LOOK FOR
+
+1. The First Hello
+
+2. Becoming Friends
+- frequent chatting
+- comfort
+- random conversations
+
+3. Endless Conversations
+- late-night chats
+- long message streaks
+- funny discussions
+
+4. Chaos & Laughter
+- memes
+- trolling
+- roasting
+- inside jokes
+- funny incidents
+
+5. Being There
+Look for:
+- emotional support
+- encouragement
+- exams
+- jobs
+- breakups
+- difficult periods
+
+6. Adventures Together
+Trips
+College
+Office
+Gaming
+Movies
+Food
+
+7. Growing Up Together
+Career
+Graduation
+New cities
+Life updates
+
+8. The Silent Days
+Long gaps
+How friendship resumed
+
+9. Still the Same Idiots
+Recent conversations showing nothing changed.
+
+10. A Friendship Worth Keeping
+
+IMPORTANT
+Humor should dominate.
+Avoid romantic narration.

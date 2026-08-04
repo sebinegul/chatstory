@@ -52,3 +52,5 @@ prisma/dev.db
 .env.vercel
 
 .worktrees/
+.vercel
+.env*
