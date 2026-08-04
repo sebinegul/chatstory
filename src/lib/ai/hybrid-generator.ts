@@ -18,6 +18,7 @@ import {
   pickQuotes,
   resolveChapters,
 } from "./mock-generator";
+import { isBadQuote, isMeaningfulQuote } from "./quotes";
 import {
   detectChatLanguage,
   languagePromptBlock,
@@ -113,6 +114,8 @@ async function storyNarrations(
         relationship,
         language: lang.label,
         writeIn: lang.writeIn,
+        instruction:
+          "Write memoir-style openings. Do not summarize. Do not paste samples. Quotes are shown separately.",
         chapters: batch.map((c) => ({
           title: c.title,
           upcomingQuotes: c.quotes.slice(0, 3),
@@ -144,24 +147,41 @@ export async function generateBookWithModels(
     const windows = buildWindows(input.chat, input.specialDates);
     const stats = computeStats(input.chat, undefined);
 
-    const prepared = chapterIdeas.map((chapter) => {
-      let windowMessages = messagesInRange(
-        input.chat.messages,
-        chapter.startAt,
-        chapter.endAt,
-      );
-      if (windowMessages.length === 0) {
-        const match = windows.find((w) => w.label === chapter.title);
-        if (match) windowMessages = match.messages;
-      }
-      const quotes = pickQuotes(windowMessages, 3);
-      return {
-        chapter,
-        windowMessages,
-        quotes,
-        sample: windowMessages.slice(0, 16).map((m) => `${m.author}: ${m.body}`),
-      };
-    });
+    const prepared = chapterIdeas
+      .map((chapter) => {
+        let windowMessages = messagesInRange(
+          input.chat.messages,
+          chapter.startAt,
+          chapter.endAt,
+        );
+        if (windowMessages.length === 0) {
+          const match = windows.find((w) => w.label === chapter.title);
+          if (match) windowMessages = match.messages;
+        }
+        const quotes = pickQuotes(windowMessages, 3);
+        const meaningful = windowMessages.filter(
+          (m) => !m.deleted && isMeaningfulQuote(m.body),
+        );
+        const sampleSource =
+          meaningful.length >= 3
+            ? meaningful
+            : windowMessages.filter((m) => !m.deleted && !isBadQuote(m.body));
+        return {
+          chapter,
+          windowMessages,
+          quotes,
+          sample: sampleSource
+            .slice(0, 16)
+            .map((m) => `${m.author}: ${m.body}`),
+        };
+      })
+      .filter((p) => {
+        if (p.quotes.length >= 2) return true;
+        return (
+          p.chapter.tone === "opening" || p.chapter.tone === "closing"
+        );
+      })
+      .slice(0, MAX_AI_CHAPTERS);
 
     // Free model: titles + dedication
     let titleOptions: string[];

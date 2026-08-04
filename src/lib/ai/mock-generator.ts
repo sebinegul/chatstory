@@ -10,6 +10,7 @@ import {
   type RelationshipId,
 } from "@/lib/relationships";
 import { formatDayKeyDMY } from "@/lib/format-date";
+import { pickQuotes } from "./quotes";
 import type {
   BookPageModel,
   GenerateBookInput,
@@ -40,56 +41,7 @@ export function messagesInRange(
   });
 }
 
-function isBadQuote(body: string): boolean {
-  const t = body.trim();
-  if (t.length < 12) return true;
-  if (t.length > 280) return true;
-  if (/https?:\/\//i.test(t)) return true;
-  if (/maps\.google|goo\.gl\/maps|maps\.app\.goo/i.test(t)) return true;
-  if (/^location:\s*/i.test(t)) return true;
-  if (/<media omitted>|image omitted|video omitted|audio omitted|sticker omitted|document omitted|gif omitted/i.test(t))
-    return true;
-  if (/^[\d\s.,+\-°]+$/.test(t)) return true;
-  const letters = (t.match(/\p{L}/gu) || []).length;
-  if (letters < 8) return true;
-  return false;
-}
-
-function quoteScore(body: string): number {
-  let score = Math.min(body.length, 160);
-  if (/[❤️😍🥰😊😂😭]|love|miss|sorry|thank|happy|proud|care/i.test(body)) {
-    score += 40;
-  }
-  if (/\?$/.test(body.trim())) score += 10;
-  return score;
-}
-
-export function pickQuotes(messages: ParsedMessage[], limit = 3): QuoteModel[] {
-  const usable = messages
-    .filter((m) => !m.deleted && !isBadQuote(m.body))
-    .sort((a, b) => quoteScore(b.body) - quoteScore(a.body));
-
-  const picked: QuoteModel[] = [];
-  const seen = new Set<string>();
-  for (const m of usable) {
-    const key = m.body.trim().toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    picked.push({
-      text: m.body.trim(),
-      author: m.author,
-      at: m.at.toISOString(),
-    });
-    if (picked.length >= limit) break;
-  }
-  return picked;
-}
-
-function clip(s: string, n: number): string {
-  const t = s.trim();
-  if (t.length <= n) return t;
-  return `${t.slice(0, n).trim()}…`;
-}
+export { pickQuotes } from "./quotes";
 
 function hourHint(iso?: string): string {
   if (!iso) return "";
@@ -103,7 +55,10 @@ function hourHint(iso?: string): string {
   return "late at night";
 }
 
-/** Unique, quote-grounded narration — never the same boilerplate on every page. */
+/**
+ * Narration sits beside the quotes — it must not paste chat lines.
+ * Quotes live in the quote boxes below.
+ */
 export function narrationForChapter(opts: {
   personA: string;
   personB: string;
@@ -124,16 +79,16 @@ export function narrationForChapter(opts: {
   } = opts;
   const names = peopleLabelForBook(relationship, personA, personB);
   const q0 = quotes[0];
-  const q1 = quotes[1];
-  const thin = messageCount < 5;
+  const thin = messageCount < 5 || quotes.length < 2;
   const when = hourHint(q0?.at);
   const who = q0?.author || personA.split(",")[0]?.trim() || personA;
-  const line = q0 ? clip(q0.text, 88) : "";
-  const second = q1 ? clip(q1.text, 64) : "";
-  const countBit =
-    messageCount > 0
-      ? `${messageCount.toLocaleString("en-IN")} messages sit in this stretch.`
-      : "Only a few lines remain here.";
+  const voices = [...new Set(quotes.map((q) => q.author).filter(Boolean))];
+  const voiceBit =
+    voices.length >= 2
+      ? `${voices.slice(0, 3).join(", ")}${voices.length > 3 ? ", and others" : ""} leave the proof below.`
+      : who
+        ? `A line from ${who} still anchors the page.`
+        : "The lines below are the proof.";
 
   const openings = [
     `${title} opens like a door left ajar.`,
@@ -147,13 +102,13 @@ export function narrationForChapter(opts: {
   if (relationship === "group") {
     if (thin) {
       return noEmDash(
-        `${open} The group goes quiet for a stretch. ${names} still leave a few lines. ${line ? `${who} said "${line}".` : "Even the thin days belong."} A group chat is rarely one mood for long.`,
+        `${open} This stretch is thin on keepsake moments. We leave it short rather than invent meaning. ${voiceBit}`,
       );
     }
     const variants = [
-      `${open} This chapter belongs to the whole thread — banter, plans, and whoever jumped in. ${line ? `${who}${when ? ` ${when}` : ""} typed "${line}".` : ""} ${second ? `Then another voice: "${second}".` : ""} ${countBit} The quotes below stay theirs.`,
-      `${open} Among ${names}, the chat piles on: jokes, arguments, check-ins, nothing polished. ${line ? `Listen to ${who}: "${line}".` : ""} ${countBit} Nothing here is invented from off-thread drama.`,
-      `${open} ${names} keep the group alive without announcing it. ${line ? `One line from ${who} stays: "${line}".` : ""} ${second ? `Someone else answers: "${second}".` : ""} ${countBit}`,
+      `${open} The group was loud here — banter, plans, and whoever jumped in. The memory is not the logistics; it is how they stayed tangled in the same thread${when ? ` ${when}` : ""}. ${voiceBit}`,
+      `${open} Among ${names}, the chat piled on without polishing itself. What worth keeping sits in the quotes below, not retold as a summary.`,
+      `${open} ${names} kept the night going. Narration steps aside so their own words can carry the chapter.`,
     ];
     return noEmDash(variants[chapterIndex % variants.length]);
   }
@@ -161,21 +116,21 @@ export function narrationForChapter(opts: {
   if (relationship === "tribute") {
     return noEmDash(
       thin
-        ? `${open} Only a handful of lines remain. We leave them untouched. ${line ? `${who} wrote: "${line}".` : "What they typed is enough."} The page keeps what the chat still knows.`
-        : `${open} Their words are still here, ordinary and exact. ${line ? `One line stays close, from ${who}${when ? ` ${when}` : ""}: "${line}".` : ""} ${countBit} We do not invent what the chat does not show.`,
+        ? `${open} Only a handful of lines remain. We leave them untouched. The page keeps what the chat still knows.`
+        : `${open} Their words are still here, ordinary and exact${when ? `, especially ${when}` : ""}. We do not invent what the chat does not show. ${voiceBit}`,
     );
   }
 
   if (relationship === "friends") {
     if (thin) {
       return noEmDash(
-        `${open} The thread thins for a while. ${names} leave check-ins and half jokes. ${line ? `${who} said "${line}".` : "Even the quiet days belong."} Friendship often looks like this: light on the surface, steady underneath.`,
+        `${open} The thread thins for a while. Friendship often looks like this: light on the surface, steady underneath. ${voiceBit}`,
       );
     }
     const variants = [
-      `${open} Between ${names}, care shows up as check-ins and shared plans — not romance, friendship. ${line ? `${who}${when ? ` ${when}` : ""} typed "${line}".` : ""} ${second ? `Then another beat: "${second}".` : ""} ${countBit} The quotes below are theirs, kept exactly.`,
-      `${open} This chapter is the closeness of friends who keep showing up. ${line ? `Listen to ${who}: "${line}".` : ""} ${countBit} Nothing theatrical. That is the point.`,
-      `${open} ${names} keep the thread warm without announcing it. ${line ? `One line from ${who} stays: "${line}".` : ""} ${second ? `Another answers in its own way: "${second}".` : ""} ${countBit}`,
+      `${open} Between ${names}, care shows up as check-ins and shared plans — not romance, friendship. ${voiceBit}`,
+      `${open} This chapter is the closeness of friends who keep showing up. Nothing theatrical. That is the point.`,
+      `${open} ${names} keep the thread warm without announcing it. ${voiceBit}`,
     ];
     return noEmDash(variants[chapterIndex % variants.length]);
   }
@@ -183,27 +138,26 @@ export function narrationForChapter(opts: {
   if (relationship === "family" || relationship === "siblings") {
     return noEmDash(
       thin
-        ? `${open} The messages grow sparse. ${names} still leave small check-ins. ${line ? `${who} wrote "${line}".` : ""} Kinship does not need a full page every day.`
-        : `${open} Across these days, ${names} keep the ordinary care of family: updates, worries, soft teasing. ${line ? `${who}${when ? ` ${when}` : ""} said "${line}".` : ""} ${countBit} The next lines are the proof.`,
+        ? `${open} The messages grow sparse. Kinship does not need a full page every day. ${voiceBit}`
+        : `${open} Across these days, ${names} keep the ordinary care of family: updates, worries, soft teasing. ${voiceBit}`,
     );
   }
 
-  // couple / default
   if (thin) {
     return noEmDash(
-      `${open} Around here the chat grows quiet. ${names} leave only a few lines, then space. ${line ? `Still, ${who} left this: "${line}".` : "Silence can be part of loving someone too."} We keep the thin places as carefully as the loud ones.`,
+      `${open} Around here the chat grows quiet. We keep the thin places as carefully as the loud ones. ${voiceBit}`,
     );
   }
   if (!q0) {
     return noEmDash(
-      `${open} ${names} keep writing through ordinary days: plans, check-ins, nothing theatrical. ${countBit} A book like this is built from the messages nobody thought to save.`,
+      `${open} ${names} keep writing through ordinary days: plans, check-ins, nothing theatrical. A book like this is built from the messages nobody thought to save.`,
     );
   }
 
   const coupleVariants = [
-    `${open} Between the late messages and the small replies, something settles between ${names}. ${who}${when ? ` ${when}` : ""} wrote "${line}". ${second ? `Then "${second}".` : ""} ${countBit} The lines below stay unpolished on purpose.`,
-    `${open} This stretch belongs to the quiet ways ${names} stayed near each other. ${who} left "${line}". ${countBit} Nothing here is invented. Everything here was typed.`,
-    `${open} Read slowly. ${who}${when ? ` ${when}` : ""} said "${line}". ${second ? `${q1?.author || personB} answered in kind: "${second}".` : ""} ${countBit} The page makes room for what followed.`,
+    `${open} Between the late messages and the small replies, something settles between ${names}. ${voiceBit}`,
+    `${open} This stretch belongs to the quiet ways ${names} stayed near each other. Nothing here is invented. Everything here was typed.`,
+    `${open} Read slowly. The page makes room for what followed — and leaves their words intact below.`,
   ];
   return noEmDash(coupleVariants[chapterIndex % coupleVariants.length]);
 }
@@ -247,7 +201,6 @@ export async function generateBook(
   const chapters = resolveChapters(input);
   const windows = buildWindows(input.chat, input.specialDates);
   const stats = computeStats(chat, undefined);
-
   const people = peopleLabelForBook(relationship, personA, personB);
   const titleOptions = [
     relationship === "group" ? people : `${personA} & ${personB}`,
@@ -293,6 +246,14 @@ export async function generateBook(
     }
 
     const quotes = pickQuotes(windowMessages, 3);
+    if (
+      quotes.length < 2 &&
+      chapter.tone !== "opening" &&
+      chapter.tone !== "closing"
+    ) {
+      continue;
+    }
+
     pages.push({
       type: "chapter",
       title: chapter.title,
@@ -324,6 +285,7 @@ export async function generateBook(
     if (pages.some((p) => p.type === "chapter" && p.title === w.label)) continue;
     if (pages.filter((p) => p.type === "chapter").length >= 15) break;
     const quotes = pickQuotes(w.messages, 2);
+    if (quotes.length < 1) continue;
     pages.push({
       type: "chapter",
       title: w.label,

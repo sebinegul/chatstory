@@ -1,5 +1,6 @@
 import type { ParsedChat, ParsedMessage } from "@/lib/parser/types";
 import { formatDayKeyDMY } from "@/lib/format-date";
+import { windowStoryScore } from "@/lib/ai/quotes";
 
 export interface ScanWindow {
   label: string;
@@ -112,11 +113,18 @@ export function proposeChaptersFromScan(
     byDay.set(key, list);
   }
 
-  const sortedDays = [...byDay.entries()].sort(
-    (a, b) => b[1].length - a[1].length,
-  );
+  const sortedDays = [...byDay.entries()]
+    .map(([day, dayMessages]) => ({
+      day,
+      dayMessages,
+      story: windowStoryScore(dayMessages),
+      volume: dayMessages.length,
+    }))
+    // Prefer days with real story texture, not just logistics pile-ons
+    .sort((a, b) => b.story - a.story || b.volume - a.volume)
+    .filter((d) => d.story > 0 || d.volume >= 40);
 
-  sortedDays.slice(0, 5).forEach(([day, dayMessages], i) => {
+  sortedDays.slice(0, 5).forEach(({ day, dayMessages }, i) => {
     const { startAt, endAt } = dayBounds(dayMessages);
     pushUnique({
       title: `${BUSY_TITLES[i % BUSY_TITLES.length]} · ${formatDayKeyDMY(day)}`,

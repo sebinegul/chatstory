@@ -180,13 +180,16 @@ Voice: ${relationshipVoice(opts.relationship)}`,
     }),
     opts.languageBlock,
     `Hard rules:
-- No em dashes
+- This is NOT a chat summary. Do not recount messages one by one.
+- Never paste sample lines or upcoming quotes into the narration (quotes appear separately)
 - Never invent quotes, dates, events, or feelings the samples do not support
-- Ground narration in concrete sample details
-- Do not repeat the upcoming quotes verbatim
+- Answer: why does this memory matter?
+- Prefer texture and meaning over logistics (times, ETAs, "reached", pure emoji laughs)
+- If the samples are mostly logistics or empty banter with no clear memory, write 2 short honest sentences and do not fake drama
 - When samples are thin, write less
 - Match the selected relationship type exactly
 - Follow humanizer.txt and quality_check.txt — reject AI sludge and clichés
+- No em dashes
 
 Return JSON only: {"chapters":[{"title":"...","narration":"..."}]}
 Use each chapter title EXACTLY as given. Return one object per chapter, in the same order.
